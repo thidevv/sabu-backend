@@ -29,7 +29,7 @@ def registrar_movimentacao(*, variacao_id, tipo, quantidade, usuario,
             "Venda/estorno exigem pedido, os demais tipos não aceitam."
         )
 
-    variacao = ProdutoVariacao.objects.select_for_update().get(pk=variacao_id)
+    variacao = ProdutoVariacao.objects.select_for_update().filter(apagado_em__isnull=True).get(pk=variacao_id)
 
     novo_saldo = variacao.quantidade_estoque + delta
     if novo_saldo < 0:
