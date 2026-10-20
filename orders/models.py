@@ -6,14 +6,17 @@ class StatusPedido(models.TextChoices):
     PENDENTE = 'PENDENTE', 'Pendente'
     CONCLUIDO = 'CONCLUIDO', 'Concluido'
     CANCELADO = 'CANCELADO', 'Cancelado'
-    ESTORNADO = 'ESTORNADO', 'Estornado'
+    ESTORNADO_COM_DEVOLUCAO = 'ESTORNADO_COM_DEVOLUCAO', 'Estornado com Devolução'
+    ESTORNADO_SEM_DEVOLUCAO = 'ESTORNADO_SEM_DEVOLUCAO', 'Estornado sem Devolução'
 
-TRANSICOES_PERMITIDAS = {
+TRANSICOES_PERMITIDAS_PEDIDO = {
     StatusPedido.PENDENTE: {StatusPedido.CONCLUIDO, StatusPedido.CANCELADO},
-    StatusPedido.CONCLUIDO: {StatusPedido.ESTORNADO},
+    StatusPedido.CONCLUIDO: {StatusPedido.ESTORNADO_COM_DEVOLUCAO, StatusPedido.ESTORNADO_SEM_DEVOLUCAO},
     StatusPedido.CANCELADO: set(),
-    StatusPedido.ESTORNADO: set(),
+    StatusPedido.ESTORNADO_COM_DEVOLUCAO: set(),
+    StatusPedido.ESTORNADO_SEM_DEVOLUCAO: set(),
 }
+
 
 class Cliente(models.Model):
     id = models.BigAutoField(primary_key=True)
@@ -28,6 +31,7 @@ class Cliente(models.Model):
 
     def __str__(self):
         return self.nome
+
 
 class Pedido(models.Model):
     id = models.BigAutoField(primary_key=True)
@@ -78,10 +82,10 @@ class PedidoItem(models.Model):
             ),
             models.CheckConstraint(
                 condition=models.Q(quantidade_item__gt=0),
-                name='ck_item_quantidade_positiva',
+                name='ck_pedido_item_quantidade_positiva',
             ),
             models.CheckConstraint(
                 condition=models.Q(quantidade_item__lte=999),
-                name='ck_item_quantidade_limite_maximo',
+                name='ck_pedido_item_quantidade_limite_maximo',
             )
         ]
