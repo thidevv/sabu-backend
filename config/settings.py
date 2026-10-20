@@ -57,6 +57,16 @@ REST_FRAMEWORK = {
     'EXCEPTION_HANDLER': 'core.exception_handler.custom_exception_handler',
 }
 
+SPECTACULAR_SETTINGS = {
+    'ENUM_NAME_OVERRIDES': {
+        'StatusPedidoEnum': 'orders.models.StatusPedido',
+        'StatusCompraFornecedorEnum': 'inventory.models.StatusCompraFornecedor',
+        'CategoriaMateriaPrimaEnum': 'inventory.models.CATEGORIA_CHOICES',
+        'MovimentacaoEstoqueTipoEnum': 'inventory.models.TipoMovimentacaoEstoque',
+        'MovimentacaoMaterialTipoEnum': 'inventory.models.TipoMovimentacaoMaterial',
+    },
+}
+
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
