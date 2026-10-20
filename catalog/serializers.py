@@ -10,6 +10,7 @@ class CategoriaSerializer(serializers.ModelSerializer):
         fields = ['id', 'nome']
         read_only_fields = ['id']
 
+
 class TipoPeleSerializer(serializers.ModelSerializer):
     class Meta:
         model = TipoPele
@@ -63,6 +64,7 @@ class ProdutoVariacaoSerializer(serializers.ModelSerializer):
                 {'preco_promo': 'Informe o início e o fim da promoção.'})
 
         return attrs
+
 
 class ProdutoVariacaoUpdateSerializer(ProdutoVariacaoSerializer):
     class Meta(ProdutoVariacaoSerializer.Meta):

@@ -82,7 +82,7 @@ class PedidoDetalhadoSerializer(ValidaEnderecoMixin, serializers.ModelSerializer
         read_only_fields = ['status', 'valor_total', 'criado_em', 'atualizado_em']
 
 
-class PedidoCreateSerializer(PedidoDetalhadoSerializer):
+class PedidoSerializer(PedidoDetalhadoSerializer):
     itens = PedidoItemSerializer(many=True, write_only=True)
 
     def validate_itens(self, value):
