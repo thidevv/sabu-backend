@@ -8,9 +8,10 @@ from orders.models import Cliente, Pedido
 from orders.schema import cliente_schema, pedido_schema
 from orders.serializers import (
     ClienteSerializer, PedidoDetalhadoSerializer,
-    PedidoCreateSerializer, PedidoUpdateSerializer,
+    PedidoSerializer, PedidoUpdateSerializer,
 )
-from orders.services import concluir_pedido, cancelar_pedido, estornar_pedido
+from orders.services import concluir_pedido, cancelar_pedido, estornar_pedido_sem_devolucao, \
+    estornar_pedido_com_devolucao
 
 
 @cliente_schema
@@ -37,7 +38,7 @@ class PedidoViewSet(AdminOnlyViewSetMixin,
 
     def get_serializer_class(self):
         if self.action == 'create':
-            return PedidoCreateSerializer
+            return PedidoSerializer
         if self.action == 'partial_update':
             return PedidoUpdateSerializer
         return PedidoDetalhadoSerializer
@@ -53,6 +54,11 @@ class PedidoViewSet(AdminOnlyViewSetMixin,
         return Response(self.get_serializer(pedido).data)
 
     @action(detail=True, methods=['post'])
-    def estornar(self, request, pk=None):
-        pedido = estornar_pedido(pedido_id=self.get_object().pk)
+    def estornar_com_devolucao(self, request, pk=None):
+        pedido = estornar_pedido_com_devolucao(pedido_id=self.get_object().pk)
+        return Response(self.get_serializer(pedido).data)
+
+    @action(detail=True, methods=['post'])
+    def estornar_sem_devolucao(self, request, pk=None):
+        pedido = estornar_pedido_sem_devolucao(pedido_id=self.get_object().pk)
         return Response(self.get_serializer(pedido).data)
