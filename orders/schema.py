@@ -20,7 +20,7 @@ _EX_TRANSICAO = exemplo_erro(
 _EX_ESTOQUE = exemplo_erro(
     'estoque_insuficiente',
     'Estoque insuficiente para "Sabonete" (SKU SAB-01). Saldo atual: 2, solicitado: 5.',
-    {'variacao_id': 1, 'sku': 'SAB-01', 'produto': 'Sabonete', 'saldo': 2, 'solicitado': 5})
+    {'ids': 1, 'sku': 'SAB-01', 'produto': 'Sabonete', 'saldo': 2, 'solicitado': 5})
 _EX_PEDIDO_NAO_EDITAVEL = exemplo_erro(
     'validation_error', 'Dados inválidos.',
     {'non_field_errors': ['Pedido concluído não pode mais ser alterado.']},
@@ -93,6 +93,8 @@ pedido_schema = extend_schema_view(
         },
     ),
     concluir=_acao('Concluir pedido', 'Muda o status para concluído. O estoque já foi baixado na criação.'),
-    cancelar=_acao('Cancelar pedido (MOVIMENTA estoque automaticamente)', 'Cancela o pedido e devolve o estoque dos itens. Movimenta o estoque.'),
-    estornar=_acao('Estornar pedido (NÃO movimenta estoque automaticamente)', 'Muda o status para estornado. Não movimenta o estoque.'),
+    cancelar=_acao('Cancelar pedido (COM devolução ao estoque automaticamente)', 'Cancela o pedido e devolve o estoque dos itens. Movimenta o estoque.'),
+    estornar_com_devolucao=_acao('Estornar pedido COM devolução ao estoque', 'Muda o status para estornado. Movimenta o estoque.'),
+    estornar_sem_devolucao=_acao('Estornar pedido SEM devolução ao estoque','Muda o status para estornado. Não movimenta o estoque.'),
+
 )
