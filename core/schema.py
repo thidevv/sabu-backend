@@ -32,7 +32,7 @@ def resposta_erro(descricao, *exemplos):
 
 EX_VALIDACAO = exemplo_erro('validation_error', 'Dados inválidos.', {'campo': ['Este campo é obrigatório.']})
 
-ERRO_400 = resposta_erro('Informe um número.', EX_VALIDACAO)
+ERRO_400 = resposta_erro('Dados inválidos.', EX_VALIDACAO)
 ERRO_400_FILTRO = resposta_erro(
     'Filtro inválido.',
     exemplo_erro('validation_error', 'Dados inválidos.', {'apagadas': ['Informe true ou false.']}),
