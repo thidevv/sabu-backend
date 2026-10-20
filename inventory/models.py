@@ -6,9 +6,27 @@ from accounts.models import Usuario
 from catalog.models import ProdutoVariacao
 from orders.models import Pedido
 
+class StatusCompraFornecedor(models.TextChoices):
+    CONCLUIDO = 'CONCLUIDO', 'Concluido'
+    DEVOLVIDO = 'DEVOLVIDO', 'Devolvido ao Fornecedor'
 
-class MateriaPrima(models.Model):
-    UNIDADE_CHOICES = (
+TRANSICOES_PERMITIDAS_COMPRA_FORNECEDOR = {
+    StatusCompraFornecedor.CONCLUIDO: {StatusCompraFornecedor.DEVOLVIDO},
+    StatusCompraFornecedor.DEVOLVIDO: set(),
+}
+
+CATEGORIA_CHOICES = (
+        ('OLEOS_E_GORDURAS', 'Óleos e gorduras'),
+        ('AGENTES_SAPONIFICANTES', 'Agentes saponificantes'),
+        ('LIQUIDOS_DILUICAO', 'Líquidos de diluição'),
+        ('AROMAS_E_FRAGANCIAS', 'Aromas e fragâncias'),
+        ('CORANTES_E_PIGMENTOS', 'Corantes e pigmentos'),
+        ('ADITIVOS_E_ATIVOS', 'Aditivos e ativos'),
+        ('EMBALAGENS_E_ROTULOS', 'Embalagens e rótulos'),
+        ('MATERIAL_DE_APOIO', 'Material de apoio'),
+    )
+
+UNIDADE_CHOICES = (
         ('KG', 'Quilograma'),
         ('G', 'Grama'),
         ('MG', 'Miligrama'),
@@ -17,11 +35,15 @@ class MateriaPrima(models.Model):
         ('UN', 'Unidade'),
     )
 
+class MateriaPrima(models.Model):
     id = models.BigAutoField(primary_key=True)
+    sku = models.CharField(max_length=50, unique=True)
     nome = models.CharField(max_length=100, unique=True)
+    tipo = models.CharField(max_length=50, choices=CATEGORIA_CHOICES)
     unidade_medida = models.CharField(max_length=10, choices=UNIDADE_CHOICES)
-    quantidade_estoque = models.DecimalField(max_digits=10, decimal_places=3)
-    valor_custo_unitario = models.DecimalField(max_digits=10, decimal_places=4)
+    quantidade_estoque = models.DecimalField(default=0, editable=False, max_digits=10, decimal_places=3)
+    custo_unitario_referencia = models.DecimalField(max_digits=10, decimal_places=4) # Preço esperado
+    apagada_em = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         db_table = 'materia_prima'
@@ -31,7 +53,7 @@ class MateriaPrima(models.Model):
                 name='ck_materia_prima_estoque_nao_negativo',
             ),
             models.CheckConstraint(
-                condition=models.Q(valor_custo_unitario__gte=0),
+                condition=models.Q(custo_unitario_referencia__gte=0),
                 name='ck_materia_prima_custo_nao_negativo',
             )
         ]
@@ -40,10 +62,91 @@ class MateriaPrima(models.Model):
         return self.nome
 
 
+class Fornecedor(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    nome = models.CharField(max_length=100)
+    categoria = models.CharField(max_length=50, choices=CATEGORIA_CHOICES)
+    plataforma = models.CharField(max_length=50, blank=True)
+    email = models.EmailField(blank=True)
+    telefone = models.CharField(max_length=20, blank=True)
+    prazo_medio_entrega_em_dias = models.PositiveIntegerField()
+    forma_pagamento = models.CharField(max_length=50, blank=True)
+    link = models.URLField(blank=True)
+    favorito = models.BooleanField(default=False)
+    apagado_em = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        db_table = 'fornecedor'
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(prazo_medio_entrega_em_dias__gt=0),
+                name='ck_fornecedor_prazo_medio_entrega_positivo',
+            )
+        ]
+
+
+class CompraFornecedor(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    fornecedor = models.ForeignKey(Fornecedor, on_delete=models.PROTECT, related_name='compra_fornecedor')
+    status = models.CharField(max_length=30, choices=StatusCompraFornecedor.choices, default='CONCLUIDO')
+    valor_total = models.DecimalField(max_digits=10, decimal_places=4) # Isso deve ser somente uma snapshot do valor da compra
+    observacao = models.TextField(blank=True)
+    compra_realizada_em = models.DateTimeField(auto_now_add=True)
+    atualizada_em = models.DateTimeField(auto_now=True)
+
+
+class CompraFornecedorItem(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    compra_fornecedor = models.ForeignKey('CompraFornecedor', on_delete=models.PROTECT, related_name='fornecedor_itens')
+    materia_prima = models.ForeignKey(MateriaPrima, on_delete=models.PROTECT, related_name='fornecedor_itens')
+    quantidade_item = models.DecimalField(max_digits=10, decimal_places=3)
+    custo_unitario_momento_compra = models.DecimalField(max_digits=10, decimal_places=4) # o "custo_unitario_momento_compra" recebe um valor na hora mas vem pré-preenchido com o valor sugerido do fornecedor (que vem de vinculo_fornecedor)?
+
+    class Meta:
+        db_table = 'compra_fornecedor_item'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['materia_prima', 'compra_fornecedor'],
+                name='uq_materia_prima_fornecedor',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(quantidade_item__gt=0),
+                name='ck_fornecedor_item_quantidade_positiva',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(quantidade_item__lte=999),
+                name='ck_fornecedor_item_quantidade_limite_maximo',
+            )
+        ]
+
+
+class VinculoFornecedor(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    fornecedor = models.ForeignKey(Fornecedor, on_delete=models.PROTECT, related_name='vinculos')
+    materia_prima = models.ForeignKey(MateriaPrima, on_delete=models.PROTECT, related_name='vinculos')
+    custo_unitario_fornecedor = models.DecimalField(max_digits=10, decimal_places=4) # Preço sugerido do fornecedor
+    sku_materia_prima_fornecedor = models.CharField(max_length=50, blank=True)
+    apagado_em = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        db_table = 'vinculo_fornecedor'
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=['fornecedor', 'materia_prima'],
+                name='uq_vinculo_fornecedor_materia_prima',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(custo_unitario_fornecedor__gte=0),
+                name='ck_vinculo_fornecedor_custo_nao_negativo',
+            )
+        ]
+
+
 class FichaTecnica(models.Model):
     id = models.BigAutoField(primary_key=True)
     variacao = models.ForeignKey(ProdutoVariacao, on_delete=models.PROTECT, related_name='fichas_tecnicas')
-    materia_prima = models.ForeignKey(MateriaPrima, on_delete=models.RESTRICT)
+    materia_prima = models.ForeignKey(MateriaPrima, on_delete=models.PROTECT)
     quantidade_necessaria = models.DecimalField(max_digits=10, decimal_places=3)
     apagada_em = models.DateTimeField(blank=True, null=True)
 
@@ -52,30 +155,31 @@ class FichaTecnica(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=['variacao', 'materia_prima'],
-                name='uq_ficha_variacao_materia',
+                name='uq_ficha_tecnica_variacao_materia_prima',
             ),
             models.CheckConstraint(
                 condition=models.Q(quantidade_necessaria__gte=Decimal('0.001')),
-                name='ck_quantidade_necessaria_positiva',
+                name='ck_ficha_tecnica_quantidade_necessaria_positiva',
             )
         ]
 
-class TipoMovimentacao(models.TextChoices):
+
+class TipoMovimentacaoEstoque(models.TextChoices):
     ENTRADA = 'ENTRADA', 'Entrada'
     SAIDA_VENDA = 'SAIDA_VENDA', 'Saída por Venda'
     AJUSTE_OU_PERDA = 'AJUSTE_OU_PERDA', 'Ajuste / Perda'
     ESTORNO_VENDA = 'ESTORNO_VENDA', 'Estorno de Venda'
 
-TIPOS_COM_PEDIDO = (TipoMovimentacao.SAIDA_VENDA, TipoMovimentacao.ESTORNO_VENDA)
-TIPOS_QUE_AUMENTAM = {TipoMovimentacao.ENTRADA, TipoMovimentacao.ESTORNO_VENDA}
-TIPOS_QUE_DIMINUEM = {TipoMovimentacao.SAIDA_VENDA, TipoMovimentacao.AJUSTE_OU_PERDA}
+TIPOS_COM_PEDIDO = (TipoMovimentacaoEstoque.SAIDA_VENDA, TipoMovimentacaoEstoque.ESTORNO_VENDA)
+TIPOS_QUE_AUMENTAM = {TipoMovimentacaoEstoque.ENTRADA, TipoMovimentacaoEstoque.ESTORNO_VENDA}
+TIPOS_QUE_DIMINUEM = {TipoMovimentacaoEstoque.SAIDA_VENDA, TipoMovimentacaoEstoque.AJUSTE_OU_PERDA}
 
 class MovimentacaoEstoque(models.Model):
     id = models.BigAutoField(primary_key=True)
-    variacao = models.ForeignKey(ProdutoVariacao, on_delete=models.PROTECT, related_name='movimentacoes')
-    usuario = models.ForeignKey(Usuario, on_delete=models.SET_NULL, null=True, related_name='movimentacoes')
-    pedido = models.ForeignKey(Pedido, on_delete=models.PROTECT, null=True, related_name='movimentacoes')
-    tipo = models.CharField(max_length=20, choices=TipoMovimentacao.choices)
+    variacao = models.ForeignKey(ProdutoVariacao, on_delete=models.PROTECT, related_name='movimentacoes_estoque')
+    usuario = models.ForeignKey(Usuario, on_delete=models.SET_NULL, null=True, related_name='movimentacoes_estoque')
+    pedido = models.ForeignKey(Pedido, on_delete=models.PROTECT, null=True, related_name='movimentacoes_estoque')
+    tipo = models.CharField(max_length=20, choices=TipoMovimentacaoEstoque.choices)
     quantidade_movimentada = models.PositiveIntegerField()
     observacao = models.TextField(blank=True)
     movimentado_em = models.DateTimeField(auto_now_add=True)
@@ -85,7 +189,7 @@ class MovimentacaoEstoque(models.Model):
         constraints = [
             models.CheckConstraint(
                 condition=models.Q(quantidade_movimentada__gt=0),
-                name='ck_quantidade_movimentada_positiva',
+                name='ck_movimentacao_estoque_quantidade_movimentada_positiva',
             ),
             models.CheckConstraint(
                 condition=(
@@ -95,9 +199,44 @@ class MovimentacaoEstoque(models.Model):
                             & models.Q(pedido__isnull=True)
                     )
                 ),
-                name='ck_movimentacao_pedido_conforme_tipo',
+                name='ck_movimentacao_estoque_pedido_conforme_tipo',
             ),
         ]
 
     def __str__(self):
         return f"{self.tipo} - Variacao ID: {self.variacao} ({self.quantidade_movimentada})"
+
+
+class TipoMovimentacaoMaterial(models.TextChoices):
+    ENTRADA = 'ENTRADA', 'Entrada'
+    SAIDA_PRODUCAO = 'SAIDA_PRODUCAO' ,'Saída por Produção'
+    AJUSTE_OU_PERDA = 'AJUSTE_OU_PERDA', 'Ajuste / Perda'
+    SAIDA_DEVOLUCAO = 'SAIDA_DEVOLUCAO', 'Saída por Devolução'
+
+TIPOS_MATERIAL_AUTOMATICOS_COM_FORNECEDOR = {TipoMovimentacaoMaterial.SAIDA_DEVOLUCAO}
+
+TIPOS_MATERIAL_QUE_AUMENTAM = {TipoMovimentacaoMaterial.ENTRADA}
+TIPOS_MATERIAL_QUE_DIMINUEM = {TipoMovimentacaoMaterial.SAIDA_PRODUCAO, TipoMovimentacaoMaterial.SAIDA_DEVOLUCAO,
+                               TipoMovimentacaoMaterial.AJUSTE_OU_PERDA}
+
+class MovimentacaoMaterial(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    materia_prima = models.ForeignKey(MateriaPrima, on_delete=models.PROTECT, related_name='movimentacoes_material')
+    usuario = models.ForeignKey(Usuario, on_delete=models.SET_NULL, null=True, related_name='movimentacoes_material')
+    fornecedor = models.ForeignKey(Fornecedor, on_delete=models.PROTECT, null=True, related_name='movimentacoes_material')
+    tipo = models.CharField(max_length=20, choices=TipoMovimentacaoMaterial.choices)
+    quantidade_movimentada = models.DecimalField(max_digits=10, decimal_places=3)
+    observacao = models.TextField(blank=True)
+    movimentado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'movimentacao_material'
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(quantidade_movimentada__gt=0),
+                name='ck_movimentacao_material_quantidade_movimentada_positiva',
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.tipo} - Matéria-prima ID: {self.materia_prima} ({self.quantidade_movimentada})"
