@@ -5,16 +5,16 @@ class EstoqueInsuficiente(ErroDeDominio):
     status_code = 409
     codigo = 'estoque_insuficiente'
 
-    def __init__(self, *, variacao_id, sku, produto, saldo, solicitado):
-        self.variacao_id = variacao_id
+    def __init__(self, *, ids, sku, produto, saldo, solicitado):
+        self.ids = ids
         self.sku = sku
         self.produto = produto
         self.saldo = saldo
         self.solicitado = solicitado
         super().__init__(
-            f'Estoque insuficiente para "{produto}" (SKU {sku}). '
+            f'Estoque insuficiente para "{produto}" (SKU {sku or '[sem SKU]'}). '
             f'Saldo atual: {saldo}, solicitado: {solicitado}.',
-            variacao_id=variacao_id, sku=sku, produto=produto,
+            ids=ids, sku=sku, produto=produto,
             saldo=saldo, solicitado=solicitado,
         )
 
@@ -27,3 +27,8 @@ class TipoMovimentacaoInvalido(ErroDeDominio):
 class MovimentacaoIncoerente(ErroDeDominio):
     codigo = 'movimentacao_incoerente'
     mensagem_padrao = 'Venda/estorno exigem pedido, os demais tipos não aceitam.'
+
+
+class CompraFornecedorSemItem(ErroDeDominio):
+    codigo = 'compra_fornecedor_sem_item'
+    mensagem_padrao = 'A compra deve conter pelo menos um item.'
