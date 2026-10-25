@@ -6,8 +6,16 @@ from rest_framework import serializers
 from core.mixins import VariacaoPorIdOuSkuMixin, MateriaPrimaPorIdOuSkuMixin
 from .models import MateriaPrima, FichaTecnica, MovimentacaoEstoque, TIPOS_COM_PEDIDO, MovimentacaoMaterial, Fornecedor, \
     VinculoFornecedor, CompraFornecedor, CompraFornecedorItem, \
-    TIPOS_MATERIAL_AUTOMATICOS_COM_FORNECEDOR
-from .services import registrar_movimentacao_estoque, registrar_movimentacao_material, criar_compra_fornecedor_completa
+    TIPOS_MATERIAL_AUTOMATICOS_COM_FORNECEDOR, CATEGORIA_MATERIA_PRIMA_CHOICES
+from .services import registrar_movimentacao_estoque, registrar_movimentacao_material, criar_compra_fornecedor_completa, \
+    definir_categorias_fornecedor
+
+
+class CategoriasFornecedorField(serializers.ListField):
+    child = serializers.ChoiceField(choices=CATEGORIA_MATERIA_PRIMA_CHOICES)
+
+    def to_representation(self, data):
+        return [c.categoria for c in data.all()]
 
 
 class MateriaPrimaSerializer(serializers.ModelSerializer):
@@ -34,12 +42,14 @@ class MateriaPrimaSerializer(serializers.ModelSerializer):
 
 
 class FornecedorSerializer(serializers.ModelSerializer):
+    categorias = CategoriasFornecedorField(allow_empty=False)
+
     class Meta:
         model = Fornecedor
         fields = [
             'id',
             'nome',
-            'categoria',
+            'categorias',
             'plataforma',
             'email',
             'telefone',
@@ -51,6 +61,22 @@ class FornecedorSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'apagado_em']
         extra_kwargs = {'prazo_medio_entrega_em_dias': {'min_value': 1}}
+
+    def validate_categorias(self, value):
+        return list(dict.fromkeys(value))
+
+    def create(self, validated_data):
+        categorias = validated_data.pop('categorias')
+        fornecedor = super().create(validated_data)
+        definir_categorias_fornecedor(fornecedor, categorias)
+        return fornecedor
+
+    def update(self, instance, validated_data):
+        categorias = validated_data.pop('categorias', None)
+        fornecedor = super().update(instance, validated_data)
+        if categorias is not None:
+            definir_categorias_fornecedor(fornecedor, categorias)
+        return fornecedor
 
 
 class CompraFornecedorItemSerializer(serializers.ModelSerializer):
