@@ -153,3 +153,16 @@ def devolver_compra_fornecedor(*, compra_fornecedor_id, usuario):
         )
 
     return _aplicar_status(compra_fornecedor, StatusCompraFornecedor.DEVOLVIDO)
+
+
+
+@transaction.atomic
+def definir_categorias_fornecedor(fornecedor, categorias):
+    novas = set(categorias)
+    atuais = set(fornecedor.categorias.values_list('categoria', flat=True))
+
+    fornecedor.categorias.filter(categoria__in=atuais - novas).delete()
+    FornecedorCategoria.objects.bulk_create([
+        FornecedorCategoria(fornecedor=fornecedor, categoria=c)
+        for c in novas - atuais
+    ])
