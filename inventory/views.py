@@ -44,7 +44,7 @@ class MateriaPrimaViewSet(AdminOnlyViewSetMixin, viewsets.ModelViewSet):
 
 @fornecedor_schema
 class FornecedorViewSet(AdminOnlyViewSetMixin, viewsets.ModelViewSet):
-    queryset = Fornecedor.objects.order_by('nome')
+    queryset = Fornecedor.objects.prefetch_related('categorias').order_by('nome')
     serializer_class = FornecedorSerializer
     filterset_class = FornecedorFilter
 
