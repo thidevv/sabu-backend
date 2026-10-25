@@ -15,7 +15,7 @@ TRANSICOES_PERMITIDAS_COMPRA_FORNECEDOR = {
     StatusCompraFornecedor.DEVOLVIDO: set(),
 }
 
-CATEGORIA_CHOICES = (
+CATEGORIA_MATERIA_PRIMA_CHOICES = (
         ('OLEOS_E_GORDURAS', 'Óleos e gorduras'),
         ('AGENTES_SAPONIFICANTES', 'Agentes saponificantes'),
         ('LIQUIDOS_DILUICAO', 'Líquidos de diluição'),
@@ -39,10 +39,10 @@ class MateriaPrima(models.Model):
     id = models.BigAutoField(primary_key=True)
     sku = models.CharField(max_length=50, unique=True)
     nome = models.CharField(max_length=100, unique=True)
-    tipo = models.CharField(max_length=50, choices=CATEGORIA_CHOICES)
+    tipo = models.CharField(max_length=50, choices=CATEGORIA_MATERIA_PRIMA_CHOICES)
     unidade_medida = models.CharField(max_length=10, choices=UNIDADE_CHOICES)
     quantidade_estoque = models.DecimalField(default=0, editable=False, max_digits=10, decimal_places=3)
-    custo_unitario_referencia = models.DecimalField(max_digits=10, decimal_places=4) # Preço esperado
+    custo_unitario_referencia = models.DecimalField(max_digits=10, decimal_places=4)
     apagada_em = models.DateTimeField(blank=True, null=True)
 
     class Meta:
@@ -65,7 +65,6 @@ class MateriaPrima(models.Model):
 class Fornecedor(models.Model):
     id = models.BigAutoField(primary_key=True)
     nome = models.CharField(max_length=100)
-    categoria = models.CharField(max_length=50, choices=CATEGORIA_CHOICES)
     plataforma = models.CharField(max_length=50, blank=True)
     email = models.EmailField(blank=True)
     telefone = models.CharField(max_length=20, blank=True)
@@ -85,11 +84,26 @@ class Fornecedor(models.Model):
         ]
 
 
+class FornecedorCategoria(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    fornecedor = models.ForeignKey(Fornecedor, on_delete=models.CASCADE, related_name='categorias')
+    categoria = models.CharField(max_length=50, choices=CATEGORIA_MATERIA_PRIMA_CHOICES)
+
+    class Meta:
+        db_table = 'fornecedor_categoria'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['fornecedor', 'categoria'],
+                name='uq_fornecedor_categoria',
+            ),
+        ]
+
+
 class CompraFornecedor(models.Model):
     id = models.BigAutoField(primary_key=True)
     fornecedor = models.ForeignKey(Fornecedor, on_delete=models.PROTECT, related_name='compra_fornecedor')
     status = models.CharField(max_length=30, choices=StatusCompraFornecedor.choices, default='CONCLUIDO')
-    valor_total = models.DecimalField(max_digits=10, decimal_places=4) # Isso deve ser somente uma snapshot do valor da compra
+    valor_total = models.DecimalField(max_digits=10, decimal_places=4)
     observacao = models.TextField(blank=True)
     compra_realizada_em = models.DateTimeField(auto_now_add=True)
     atualizada_em = models.DateTimeField(auto_now=True)
@@ -100,7 +114,7 @@ class CompraFornecedorItem(models.Model):
     compra_fornecedor = models.ForeignKey('CompraFornecedor', on_delete=models.PROTECT, related_name='fornecedor_itens')
     materia_prima = models.ForeignKey(MateriaPrima, on_delete=models.PROTECT, related_name='fornecedor_itens')
     quantidade_item = models.DecimalField(max_digits=10, decimal_places=3)
-    custo_unitario_momento_compra = models.DecimalField(max_digits=10, decimal_places=4) # o "custo_unitario_momento_compra" recebe um valor na hora mas vem pré-preenchido com o valor sugerido do fornecedor (que vem de vinculo_fornecedor)?
+    custo_unitario_momento_compra = models.DecimalField(max_digits=10, decimal_places=4)
 
     class Meta:
         db_table = 'compra_fornecedor_item'
