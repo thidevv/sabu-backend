@@ -61,7 +61,7 @@ SPECTACULAR_SETTINGS = {
     'ENUM_NAME_OVERRIDES': {
         'StatusPedidoEnum': 'orders.models.StatusPedido',
         'StatusCompraFornecedorEnum': 'inventory.models.StatusCompraFornecedor',
-        'CategoriaMateriaPrimaEnum': 'inventory.models.CATEGORIA_CHOICES',
+        'CategoriaMateriaPrimaEnum': 'inventory.models.CATEGORIA_MATERIA_PRIMA_CHOICES',
         'MovimentacaoEstoqueTipoEnum': 'inventory.models.TipoMovimentacaoEstoque',
         'MovimentacaoMaterialTipoEnum': 'inventory.models.TipoMovimentacaoMaterial',
     },
@@ -137,12 +137,16 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
+        'ENGINE': 'mssql',
         'NAME': env('DB_NAME'),
         'USER': env('DB_USER'),
         'PASSWORD': env('DB_PASSWORD'),
         'HOST': env('DB_HOST'),
         'PORT': env('DB_PORT'),
+        'OPTIONS': {
+            'driver': 'ODBC Driver 18 for SQL Server',
+            'extra_params': 'Encrypt=yes;TrustServerCertificate=no;',
+        },
     }
 }
 
