@@ -15,7 +15,7 @@ from .models import (
     TIPOS_QUE_AUMENTAM,
     TIPOS_QUE_DIMINUEM, TIPOS_MATERIAL_QUE_AUMENTAM, TIPOS_MATERIAL_QUE_DIMINUEM, MateriaPrima, MovimentacaoMaterial,
     CompraFornecedor, CompraFornecedorItem, TRANSICOES_PERMITIDAS_COMPRA_FORNECEDOR,
-    StatusCompraFornecedor, TIPOS_MATERIAL_AUTOMATICOS_COM_FORNECEDOR,
+    StatusCompraFornecedor, FornecedorCategoria,
 )
 
 
@@ -64,11 +64,6 @@ def registrar_movimentacao_material(*, materia_prima_id, tipo, quantidade, usuar
         delta = -quantidade
     else:
         raise TipoMovimentacaoInvalido(f'Tipo de movimentação inválido: {tipo}.')
-
-    if (tipo in TIPOS_MATERIAL_AUTOMATICOS_COM_FORNECEDOR) != (fornecedor is not None):
-        raise MovimentacaoIncoerente(
-            "Saídas por devolução exigem fornecedor."
-        )
 
     materia_prima = MateriaPrima.objects.select_for_update().filter(apagada_em__isnull=True).get(pk=materia_prima_id)
 
