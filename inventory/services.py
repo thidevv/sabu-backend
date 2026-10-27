@@ -7,7 +7,7 @@ from orders.exceptions import TransicaoInvalida
 from .exceptions import (
     EstoqueInsuficiente,
     MovimentacaoIncoerente,
-    TipoMovimentacaoInvalido, CompraFornecedorSemItem,
+    TipoMovimentacaoInvalido, CompraFornecedorSemItem, ItemDesativado,
 )
 from .models import (
     MovimentacaoEstoque,
@@ -103,6 +103,13 @@ def criar_compra_fornecedor_completa(usuario, dados_compra, itens_data):
     for item_data in itens_data:
         materia_prima = item_data['materia_prima']
         quantidade = item_data['quantidade_item']
+
+        if MateriaPrima.objects.filter(pk=materia_prima.pk, apagada_em__isnull=False).exists():
+            raise ItemDesativado(
+                ids=materia_prima.pk,
+                sku=materia_prima.sku,
+                produto=materia_prima.nome,
+            )
 
         registrar_movimentacao_material(
             materia_prima_id=materia_prima.pk,
