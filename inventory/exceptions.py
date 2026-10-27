@@ -32,3 +32,16 @@ class MovimentacaoIncoerente(ErroDeDominio):
 class CompraFornecedorSemItem(ErroDeDominio):
     codigo = 'compra_fornecedor_sem_item'
     mensagem_padrao = 'A compra deve conter pelo menos um item.'
+
+
+class ItemDesativado(ErroDeDominio):
+    codigo = 'item_desativado'
+
+    def __init__(self, *, ids, sku, produto):
+        self.ids = ids
+        self.sku = sku
+        self.produto = produto
+        super().__init__(
+            f'O item "{produto}" (SKU {sku or '[sem SKU]'}) está desativado.',
+            ids=ids, sku=sku, produto=produto,
+        )
