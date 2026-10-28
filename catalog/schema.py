@@ -1,9 +1,10 @@
 from drf_spectacular.utils import extend_schema, extend_schema_view
 
 from core.schema import (
-    ERRO_400, ERRO_400_FILTRO, ERRO_401, ERRO_403, ERRO_404, crud_schema,
+    ERRO_400, ERRO_400_FILTRO, ERRO_401, ERRO_403, ERRO_404, EX_VALIDACAO, crud_schema,
     exemplo_erro, resposta_erro, PARAM_APAGADAS,
 )
+from inventory.serializers import FabricarVariacaoSerializer, LoteProdutoVariacaoSerializer
 from .serializers import (
     CategoriaSerializer, ProdutoDetalhadoSerializer, ProdutoSerializer,
     ProdutoVariacaoSerializer, ProdutoVariacaoUpdateSerializer, TipoPeleSerializer,
@@ -21,7 +22,6 @@ produto_schema = extend_schema_view(**crud_schema(
     TAG, 'produto', 'produtos',
     leitura=ProdutoDetalhadoSerializer, escrita=ProdutoSerializer,
     leitura_publica=True,
-    # list: parâmetros gerados pelo ProdutoFilter
     list_extra={
         400: resposta_erro(
             'Filtro inválido.',
@@ -51,9 +51,10 @@ variacao_schema = extend_schema_view(
         retrieve_extra={400: ERRO_400_FILTRO},
         descricoes={
             'list': 'Não-admin vê apenas variações ativas de produtos ativos e `apagadas` é ignorado. '
-                    'Admin: sem `apagadas`, retorna ativas e apagadas.',
+                    'Admin: sem `apagadas`, retorna ativas e apagadas. '
+                    '`quantidade_estoque` é a soma das quantidades dos lotes ativos (não vencidos e não esgotados).',
             'destroy': 'Exclusão lógica. Apaga também as fichas técnicas ativas da variação. '
-                       'Variação já apagada retorna 404.',
+                       'Variação já apagada retorna 404. Os lotes existentes são mantidos.',
         },
     ),
     restaurar=extend_schema(
@@ -63,5 +64,50 @@ variacao_schema = extend_schema_view(
         request=None,
         responses={200: ProdutoVariacaoSerializer, 400: ERRO_400,
                    401: ERRO_401, 403: ERRO_403, 404: ERRO_404},
+    ),
+    fabricar=extend_schema(
+        tags=[TAG],
+        summary='Fabricar variação',
+        description='Fabrica a quantidade informada com base na ficha técnica ativa da variação. '
+                    'Consome as matérias-primas de cada ingrediente seguindo o FEFO (primeiro lote a vencer, '
+                    'primeiro a sair), com uma saída por produção em cada lote consumido, e cria um lote '
+                    'de variação com uma movimentação de entrada. Lotes de matéria-prima vencidos não são '
+                    'usados. Tudo roda em uma única transação: se faltar saldo de qualquer ingrediente, '
+                    'nada é gravado. `data_validade` é obrigatória e não pode estar no passado. '
+                    'Sem `data_fabricacao`, usa a data atual. Sem `numero_lote`, o número é gerado '
+                    'automaticamente (SKU-AAAAMMDD-NN).',
+        request=FabricarVariacaoSerializer,
+        responses={
+            201: LoteProdutoVariacaoSerializer,
+            400: resposta_erro(
+                'Dados inválidos ou variação sem ficha técnica ativa.',
+                EX_VALIDACAO,
+                exemplo_erro(
+                    'validation_error', 'Dados inválidos.',
+                    {'data_validade': ['A data de validade não pode estar no passado.']},
+                    nome='validade_no_passado',
+                ),
+                exemplo_erro(
+                    'validation_error', 'Dados inválidos.',
+                    {'numero_lote': ['Já existe um lote com este número.']},
+                    nome='numero_lote_duplicado',
+                ),
+                exemplo_erro(
+                    'ficha_tecnica_inexistente',
+                    'A variação "Lavanda 90g" (SKU SAB-LAV-90) não possui ficha técnica ativa.',
+                ),
+            ),
+            401: ERRO_401,
+            403: ERRO_403,
+            404: ERRO_404,
+            409: resposta_erro(
+                'Estoque de matéria-prima insuficiente.',
+                exemplo_erro(
+                    'estoque_insuficiente',
+                    'Estoque insuficiente para "Glicerina" (SKU GLI-01). Saldo atual: 2.000, solicitado: 5.000.',
+                    {'ids': 1, 'sku': 'GLI-01', 'produto': 'Glicerina', 'saldo': '2.000', 'solicitado': '5.000'},
+                ),
+            ),
+        },
     ),
 )
