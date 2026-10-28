@@ -7,7 +7,8 @@ from core.schema import (
 from .serializers import (
     CompraFornecedorSerializer, CompraFornecedorDetalhadaSerializer,
     FichaTecnicaDetalhadaSerializer, FichaTecnicaSerializer, FichaTecnicaUpdateSerializer,
-    FornecedorSerializer, MateriaPrimaSerializer, MovimentacaoEstoqueSerializer,
+    FornecedorSerializer, LoteMateriaPrimaSerializer, LoteProdutoVariacaoSerializer,
+    MateriaPrimaSerializer, MovimentacaoEstoqueSerializer,
     MovimentacaoMaterialSerializer, VinculoFornecedorDetalhadoSerializer,
     VinculoFornecedorSerializer, VinculoFornecedorUpdateSerializer,
 )
@@ -26,6 +27,21 @@ ERRO_400_FILTRO_APAGADOS = resposta_erro(
     exemplo_erro('validation_error', 'Dados inválidos.', {'apagados': ['Informe true ou false.']}),
 )
 
+_EX_STATUS_LOTE_INVALIDO = exemplo_erro(
+    'validation_error', 'Dados inválidos.',
+    {'status': ['Faça uma escolha válida. INVALIDO não é uma das escolhas disponíveis.']},
+    nome='status_invalido',
+)
+_EX_VALIDADE_PASSADO = exemplo_erro(
+    'validation_error', 'Dados inválidos.',
+    {'data_validade': ['A data de validade não pode estar no passado.']},
+    nome='validade_no_passado',
+)
+_EX_LOTE_VENCIDO = exemplo_erro(
+    'lote_indisponivel',
+    'O lote "LT-2026-01" está vencido e não aceita esta movimentação.',
+)
+
 materia_prima_schema = extend_schema_view(**crud_schema(
     TAG, 'matéria-prima', 'matérias-primas',
     leitura=MateriaPrimaSerializer,
@@ -35,7 +51,8 @@ materia_prima_schema = extend_schema_view(**crud_schema(
     retrieve_extra={400: ERRO_400_FILTRO},
     descricoes={
         'list': 'Ordenadas por nome. Sem `apagadas`, retorna ativas e apagadas. '
-                '`apagadas=true`: só apagadas; `apagadas=false`: só ativas.',
+                '`apagadas=true`: só apagadas; `apagadas=false`: só ativas. '
+                '`quantidade_estoque` é a soma das quantidades dos lotes ativos (não vencidos e não esgotados).',
         'destroy': 'Exclusão lógica. Os vínculos de fornecedor ativos desta matéria-prima '
                    'também são apagados logicamente.',
     },
@@ -69,7 +86,8 @@ compra_fornecedor_schema = extend_schema_view(
         },
         descricoes={
             'list': 'Ordenadas da mais recente para a mais antiga. '
-                    'Use `fornecedor_id` para filtrar por fornecedor.',
+                    'Use `fornecedor_id` para filtrar por fornecedor. '
+                    'Cada item informa o `lote` gerado por ele.',
             'partial_update': 'Apenas `observacao` é editável.',
         },
         ops=('list', 'retrieve', 'partial_update'),
@@ -77,9 +95,11 @@ compra_fornecedor_schema = extend_schema_view(
     create=extend_schema(
         tags=[TAG],
         summary='Registrar compra de fornecedor',
-        description='Cria a compra e seus itens em uma única operação, registrando a entrada '
-                    'de cada matéria-prima no estoque. É obrigatório ao menos um item, '
-                    'sem repetir matéria-prima.',
+        description='Cria a compra e seus itens em uma única operação. Cada item gera um lote único '
+                    'de matéria-prima, criado vazio e em seguida abastecido por uma movimentação '
+                    'de entrada. `numero_lote_fabricante` é opcional (vazio é gravado como '
+                    '"Não informado") e `data_validade` é opcional e não pode estar no passado. '
+                    'É obrigatório ao menos um item, sem repetir matéria-prima.',
         responses={
             201: CompraFornecedorSerializer,
             400: resposta_erro(
@@ -91,8 +111,16 @@ compra_fornecedor_schema = extend_schema_view(
                                'Some as quantidades em um único item.']},
                     nome='itens_repetidos',
                 ),
+                exemplo_erro(
+                    'validation_error', 'Dados inválidos.',
+                    {'itens': [{'data_validade': ['A data de validade não pode estar no passado.']}]},
+                    nome='item_validade_no_passado',
+                ),
                 exemplo_erro('compra_fornecedor_sem_item',
                              'A compra deve conter pelo menos um item.'),
+                exemplo_erro('item_desativado',
+                             'O item "Glicerina" (SKU GLI-01) está desativado.',
+                             {'ids': 1, 'sku': 'GLI-01', 'produto': 'Glicerina'}),
             ),
             401: ERRO_401,
             403: ERRO_403,
@@ -101,9 +129,10 @@ compra_fornecedor_schema = extend_schema_view(
     devolver=extend_schema(
         tags=[TAG],
         summary='Devolver compra',
-        description='Devolve a compra ao fornecedor, dando saída no estoque de cada matéria-prima '
-                    'dos itens, e retorna a compra atualizada. Só é permitido quando o status '
-                    'da compra permite a transição para devolvida.',
+        description='Devolve a compra ao fornecedor com uma saída por devolução no lote de cada item, '
+                    'e retorna a compra atualizada. Os lotes não são apagados: ao zerar, ficam com '
+                    'status `ESGOTADO`. Só é permitido quando o status da compra permite a transição '
+                    'para devolvida e quando cada lote ainda tem a quantidade comprada disponível.',
         request=None,
         responses={
             200: CompraFornecedorDetalhadaSerializer,
@@ -111,7 +140,7 @@ compra_fornecedor_schema = extend_schema_view(
             403: ERRO_403,
             404: ERRO_404,
             409: resposta_erro(
-                'Transição de status inválida ou estoque insuficiente.',
+                'Transição de status inválida ou estoque insuficiente no lote.',
                 exemplo_erro(
                     'transicao_status_invalida',
                     'Transição de status inválida: DEVOLVIDO → DEVOLVIDO.',
@@ -119,8 +148,10 @@ compra_fornecedor_schema = extend_schema_view(
                 ),
                 exemplo_erro(
                     'estoque_insuficiente',
-                    'Estoque insuficiente para "Glicerina" (SKU GLI-01). Saldo atual: 2, solicitado: 5.',
-                    {'ids': 1, 'sku': 'GLI-01', 'produto': 'Glicerina', 'saldo': 2, 'solicitado': 5},
+                    'Estoque insuficiente para "Glicerina (lote LT-2026-01)" (SKU GLI-01). '
+                    'Saldo atual: 2.000, solicitado: 5.000.',
+                    {'ids': 1, 'sku': 'GLI-01', 'produto': 'Glicerina (lote LT-2026-01)',
+                     'saldo': '2.000', 'solicitado': '5.000'},
                 ),
             ),
         },
@@ -197,6 +228,98 @@ ficha_tecnica_schema = extend_schema_view(
     ),
 )
 
+lote_materia_prima_schema = extend_schema_view(
+    **crud_schema(
+        TAG, 'lote de matéria-prima', 'lotes de matéria-prima',
+        leitura=LoteMateriaPrimaSerializer,
+        list_extra={
+            400: resposta_erro(
+                'Filtro inválido.',
+                exemplo_erro('validation_error', 'Dados inválidos.',
+                             {'materia_prima_id': ['Informe um ID numérico.']},
+                             nome='materia_prima_id_invalido'),
+                _EX_STATUS_LOTE_INVALIDO,
+            ),
+        },
+        descricoes={'list': 'Ordenados do mais recente para o mais antigo. '
+                            'Os filtros `materia_prima_id`, `compra_fornecedor_item_id`, `status` e `sku` '
+                            'podem ser combinados. Os lotes gerados por compra de fornecedor são criados '
+                            'automaticamente; esta listagem também mostra os lotes manuais.'},
+        ops=('list', 'retrieve'),
+    ),
+    create=extend_schema(
+        tags=[TAG],
+        summary='Criar lote de matéria-prima vazio',
+        description='Cria um lote vazio (quantidade 0). Para abastecê-lo, registre em seguida uma '
+                    'movimentação de matéria-prima do tipo `ENTRADA` informando o lote. '
+                    '`numero_lote_fabricante` vazio é gravado como "Não informado". '
+                    '`data_validade` é opcional e não pode estar no passado. '
+                    'Lotes sem validade nunca vencem.',
+        responses={
+            201: LoteMateriaPrimaSerializer,
+            400: resposta_erro(
+                'Dados inválidos ou matéria-prima desativada.',
+                EX_VALIDACAO,
+                _EX_VALIDADE_PASSADO,
+                exemplo_erro('item_desativado',
+                             'O item "Glicerina" (SKU GLI-01) está desativado.',
+                             {'ids': 1, 'sku': 'GLI-01', 'produto': 'Glicerina'}),
+            ),
+            401: ERRO_401,
+            403: ERRO_403,
+        },
+    ),
+)
+
+lote_produto_variacao_schema = extend_schema_view(
+    **crud_schema(
+        TAG, 'lote de variação', 'lotes de variação',
+        leitura=LoteProdutoVariacaoSerializer,
+        list_extra={
+            400: resposta_erro(
+                'Filtro inválido.',
+                exemplo_erro('validation_error', 'Dados inválidos.',
+                             {'variacao_id': ['Informe um ID numérico.']},
+                             nome='variacao_id_invalido'),
+                _EX_STATUS_LOTE_INVALIDO,
+            ),
+        },
+        descricoes={'list': 'Ordenados do mais recente para o mais antigo. '
+                            'Os filtros `variacao_id`, `status` e `sku` podem ser combinados. '
+                            'Os lotes gerados pela fabricação são criados automaticamente; '
+                            'esta listagem também mostra os lotes manuais.'},
+        ops=('list', 'retrieve'),
+    ),
+    create=extend_schema(
+        tags=[TAG],
+        summary='Criar lote de variação vazio',
+        description='Cria um lote vazio (quantidade 0). Para abastecê-lo, registre em seguida uma '
+                    'movimentação de estoque do tipo `ENTRADA` informando o lote. '
+                    '`data_validade` é obrigatória e não pode estar no passado nem anteceder '
+                    '`data_fabricacao`. Sem `data_fabricacao`, usa a data atual. Sem `numero_lote`, '
+                    'o número é gerado automaticamente (SKU-AAAAMMDD-NN). Para produzir a partir da '
+                    'ficha técnica, use a fabricação da variação.',
+        responses={
+            201: LoteProdutoVariacaoSerializer,
+            400: resposta_erro(
+                'Dados inválidos ou variação desativada.',
+                EX_VALIDACAO,
+                _EX_VALIDADE_PASSADO,
+                exemplo_erro(
+                    'validation_error', 'Dados inválidos.',
+                    {'numero_lote': ['Já existe um lote com este número.']},
+                    nome='numero_lote_duplicado',
+                ),
+                exemplo_erro('item_desativado',
+                             'O item "Lavanda 90g" (SKU SAB-LAV-90) está desativado.',
+                             {'ids': 1, 'sku': 'SAB-LAV-90', 'produto': 'Lavanda 90g'}),
+            ),
+            401: ERRO_401,
+            403: ERRO_403,
+        },
+    ),
+)
+
 movimentacao_estoque_schema = extend_schema_view(
     **crud_schema(
         TAG, 'movimentação', 'movimentações',
@@ -209,13 +332,17 @@ movimentacao_estoque_schema = extend_schema_view(
             ),
         },
         descricoes={'list': 'Ordenadas da mais recente para a mais antiga. '
-                            'Os filtros `variacao_id` e `sku` podem ser combinados.'},
+                            'Os filtros `variacao_id`, `lote_produto_variacao_id` e `sku` podem ser combinados.'},
         ops=('list', 'retrieve'),
     ),
     create=extend_schema(
         tags=[TAG],
         summary='Registrar movimentação de estoque',
-        description='Venda/estorno exigem pedido, os demais tipos não aceitam.',
+        description='A movimentação é feita sobre um lote de variação existente '
+                    '(`lote_produto_variacao`). Para um lote novo, crie-o vazio antes e registre uma '
+                    '`ENTRADA`. Venda/estorno exigem pedido e são gerados automaticamente pelos pedidos; '
+                    'os demais tipos não aceitam. Entrada, saída por venda e saída por produção não são '
+                    'aceitas em lote vencido. O estoque da variação soma apenas os lotes ativos.',
         responses={
             201: MovimentacaoEstoqueSerializer,
             400: resposta_erro(
@@ -227,11 +354,17 @@ movimentacao_estoque_schema = extend_schema_view(
             ),
             401: ERRO_401,
             403: ERRO_403,
-            409: resposta_erro('Estoque insuficiente.', exemplo_erro(
-                'estoque_insuficiente',
-                'Estoque insuficiente para "Sabonete" (SKU SAB-01). Saldo atual: 2, solicitado: 5.',
-                {'ids': 1, 'sku': 'SAB-01', 'produto': 'Sabonete', 'saldo': 2, 'solicitado': 5},
-            )),
+            409: resposta_erro(
+                'Estoque insuficiente no lote ou lote vencido.',
+                exemplo_erro(
+                    'estoque_insuficiente',
+                    'Estoque insuficiente para "Sabonete (lote SAB-01-20261028-01)" (SKU SAB-01). '
+                    'Saldo atual: 2, solicitado: 5.',
+                    {'ids': 1, 'sku': 'SAB-01', 'produto': 'Sabonete (lote SAB-01-20261028-01)',
+                     'saldo': 2, 'solicitado': 5},
+                ),
+                _EX_LOTE_VENCIDO,
+            ),
         },
     ),
 )
@@ -248,13 +381,18 @@ movimentacao_material_schema = extend_schema_view(
             ),
         },
         descricoes={'list': 'Ordenadas da mais recente para a mais antiga. '
-                            'Os filtros `materia_prima_id` e `sku` podem ser combinados.'},
+                            'Os filtros `materia_prima_id`, `lote_materia_prima_id` e `sku` podem ser combinados.'},
         ops=('list', 'retrieve'),
     ),
     create=extend_schema(
         tags=[TAG],
         summary='Registrar movimentação de matéria-prima',
-        description='Todos os tipos aceitam fornecedor, com exceção das saídas por produção.',
+        description='A movimentação é feita sobre um lote de matéria-prima existente '
+                    '(`lote_materia_prima`). Para um lote novo, crie-o vazio antes e registre uma '
+                    '`ENTRADA`. Todos os tipos aceitam fornecedor, com exceção das saídas por produção. '
+                    'A saída por devolução é gerada automaticamente pela devolução da compra. '
+                    'Entrada e saída por produção não são aceitas em lote vencido. '
+                    'O estoque da matéria-prima soma apenas os lotes ativos.',
         responses={
             201: MovimentacaoMaterialSerializer,
             400: resposta_erro(
@@ -266,11 +404,17 @@ movimentacao_material_schema = extend_schema_view(
             ),
             401: ERRO_401,
             403: ERRO_403,
-            409: resposta_erro('Estoque insuficiente.', exemplo_erro(
-                'estoque_insuficiente',
-                'Estoque insuficiente para "Glicerina" (SKU SAB-01). Saldo atual: 2, solicitado: 5.',
-                {'ids': 1, 'sku': 'SAB-01', 'produto': 'Glicerina', 'saldo': 2, 'solicitado': 5},
-            )),
+            409: resposta_erro(
+                'Estoque insuficiente no lote ou lote vencido.',
+                exemplo_erro(
+                    'estoque_insuficiente',
+                    'Estoque insuficiente para "Glicerina (lote LT-2026-01)" (SKU GLI-01). '
+                    'Saldo atual: 2.000, solicitado: 5.000.',
+                    {'ids': 1, 'sku': 'GLI-01', 'produto': 'Glicerina (lote LT-2026-01)',
+                     'saldo': '2.000', 'solicitado': '5.000'},
+                ),
+                _EX_LOTE_VENCIDO,
+            ),
         },
     ),
 )
