@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from django.db import transaction
 
-from inventory.services import registrar_movimentacao_estoque
+from inventory.services import baixar_estoque_variacao_fefo, estornar_vendas_do_pedido
 from orders.exceptions import PedidoSemItem, TransicaoInvalida
 from orders.models import Pedido, PedidoItem, Cliente, StatusPedido, TRANSICOES_PERMITIDAS_PEDIDO
 
@@ -25,9 +25,8 @@ def criar_pedido_completo(usuario, dados_pedido, itens_data):
         variacao = item_data['variacao']
         quantidade = item_data['quantidade_item']
 
-        registrar_movimentacao_estoque(
+        baixar_estoque_variacao_fefo(
             variacao_id=variacao.pk,
-            tipo='SAIDA_VENDA',
             quantidade=quantidade,
             usuario=usuario,
             pedido=pedido,
@@ -74,15 +73,11 @@ def alterar_status_pedido(*, pedido_id, novo_status):
 def cancelar_pedido(*, pedido_id, usuario):
     pedido = _travar_e_validar_transicao(pedido_id, StatusPedido.CANCELADO)
 
-    for item in pedido.pedido_itens.order_by('variacao_id'):
-        registrar_movimentacao_estoque(
-            variacao_id=item.variacao_id,
-            tipo='ESTORNO_VENDA',
-            quantidade=item.quantidade_item,
-            usuario=usuario,
-            pedido=pedido,
-            observacao='MOVIMENTAÇÃO AUTOMÁTICA DO SISTEMA: Estorno com devolução ao estoque por cancelamento',
-        )
+    estornar_vendas_do_pedido(
+        pedido=pedido,
+        usuario=usuario,
+        observacao='MOVIMENTAÇÃO AUTOMÁTICA DO SISTEMA: Estorno com devolução ao estoque por cancelamento',
+    )
 
     return _aplicar_status(pedido, StatusPedido.CANCELADO)
 
@@ -95,15 +90,11 @@ def concluir_pedido(*, pedido_id):
 def estornar_pedido_com_devolucao(*, pedido_id, usuario):
     pedido = _travar_e_validar_transicao(pedido_id, StatusPedido.ESTORNADO_COM_DEVOLUCAO)
 
-    for item in pedido.pedido_itens.order_by('variacao_id'):
-        registrar_movimentacao_estoque(
-            variacao_id=item.variacao_id,
-            tipo='ESTORNO_VENDA',
-            quantidade=item.quantidade_item,
-            usuario=usuario,
-            pedido=pedido,
-            observacao='MOVIMENTAÇÃO AUTOMÁTICA DO SISTEMA: Estorno com devolução ao estoque',
-        )
+    estornar_vendas_do_pedido(
+        pedido=pedido,
+        usuario=usuario,
+        observacao='MOVIMENTAÇÃO AUTOMÁTICA DO SISTEMA: Estorno com devolução ao estoque',
+    )
 
     return _aplicar_status(pedido, StatusPedido.ESTORNADO_COM_DEVOLUCAO)
 
