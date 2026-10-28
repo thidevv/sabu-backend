@@ -55,7 +55,7 @@ class PedidoViewSet(AdminOnlyViewSetMixin,
 
     @action(detail=True, methods=['post'])
     def estornar_com_devolucao(self, request, pk=None):
-        pedido = estornar_pedido_com_devolucao(pedido_id=self.get_object().pk)
+        pedido = estornar_pedido_com_devolucao(pedido_id=self.get_object().pk, usuario=request.user)
         return Response(self.get_serializer(pedido).data)
 
     @action(detail=True, methods=['post'])
