@@ -1,14 +1,24 @@
 from collections import Counter
 from decimal import Decimal
 
+from django.utils import timezone
 from rest_framework import serializers
 
-from core.mixins import VariacaoPorIdOuSkuMixin, MateriaPrimaPorIdOuSkuMixin
-from .models import MateriaPrima, FichaTecnica, MovimentacaoEstoque, TIPOS_COM_PEDIDO, MovimentacaoMaterial, Fornecedor, \
-    VinculoFornecedor, CompraFornecedor, CompraFornecedorItem, \
-    TIPOS_MATERIAL_AUTOMATICOS_COM_FORNECEDOR, CATEGORIA_MATERIA_PRIMA_CHOICES
-from .services import registrar_movimentacao_estoque, registrar_movimentacao_material, criar_compra_fornecedor_completa, \
-    definir_categorias_fornecedor
+from .models import (
+    MateriaPrima, FichaTecnica, MovimentacaoEstoque, TIPOS_COM_PEDIDO, MovimentacaoMaterial, Fornecedor,
+    VinculoFornecedor, CompraFornecedor, CompraFornecedorItem, LoteMateriaPrima, LoteProdutoVariacao,
+    TIPOS_MATERIAL_AUTOMATICOS_COM_FORNECEDOR, CATEGORIA_MATERIA_PRIMA_CHOICES,
+)
+from .services import (
+    registrar_movimentacao_estoque, registrar_movimentacao_material, criar_compra_fornecedor_completa,
+    definir_categorias_fornecedor, criar_lote_materia_prima, criar_lote_variacao,
+)
+
+
+def _validar_validade_nao_vencida(value):
+    if value is not None and value < timezone.localdate():
+        raise serializers.ValidationError('A data de validade não pode estar no passado.')
+    return value
 
 
 class CategoriasFornecedorField(serializers.ListField):
@@ -80,6 +90,10 @@ class FornecedorSerializer(serializers.ModelSerializer):
 
 
 class CompraFornecedorItemSerializer(serializers.ModelSerializer):
+    numero_lote_fabricante = serializers.CharField(max_length=50, required=False, allow_blank=True, write_only=True,)
+    data_validade = serializers.DateField(required=False, allow_null=True, write_only=True)
+    lote = serializers.SerializerMethodField()
+
     class Meta:
         model = CompraFornecedorItem
         fields = [
@@ -87,11 +101,21 @@ class CompraFornecedorItemSerializer(serializers.ModelSerializer):
             'materia_prima',
             'quantidade_item',
             'custo_unitario_momento_compra',
+            'numero_lote_fabricante',
+            'data_validade',
+            'lote',
         ]
         read_only_fields = ['id']
         extra_kwargs = {
             'quantidade_item': {'min_value': Decimal('0.001'), 'max_value': Decimal('999')},
         }
+
+    def get_lote(self, obj):
+        lote = next(iter(obj.lote_materiais.all()), None)
+        return lote.pk if lote else None
+
+    def validate_data_validade(self, value):
+        return _validar_validade_nao_vencida(value)
 
 
 class CompraFornecedorDetalhadaSerializer(serializers.ModelSerializer):
@@ -217,11 +241,120 @@ class FichaTecnicaUpdateSerializer(FichaTecnicaSerializer):
         read_only_fields = ['id', 'variacao', 'apagada_em']
 
 
-class MovimentacaoEstoqueSerializer(VariacaoPorIdOuSkuMixin, serializers.ModelSerializer):
+class LoteMateriaPrimaSerializer(serializers.ModelSerializer):
+    sku = serializers.CharField(source='materia_prima.sku', read_only=True)
+    materia_prima_nome = serializers.CharField(source='materia_prima.nome', read_only=True)
+
+    class Meta:
+        model = LoteMateriaPrima
+        fields = [
+            'id',
+            'materia_prima',
+            'sku',
+            'materia_prima_nome',
+            'compra_fornecedor_item',
+            'numero_lote_fabricante',
+            'quantidade_inicial',
+            'quantidade_atual',
+            'status',
+            'data_validade',
+            'observacao',
+            'criado_em',
+        ]
+        read_only_fields = [
+            'id', 'compra_fornecedor_item', 'quantidade_inicial', 'quantidade_atual', 'status', 'criado_em',
+        ]
+
+    def validate_data_validade(self, value):
+        return _validar_validade_nao_vencida(value)
+
+    def create(self, validated_data):
+        return criar_lote_materia_prima(**validated_data)
+
+
+class LoteProdutoVariacaoSerializer(serializers.ModelSerializer):
+    sku = serializers.CharField(source='variacao.sku', read_only=True)
+    variacao_nome = serializers.CharField(source='variacao.nome', read_only=True)
+    produto_nome = serializers.CharField(source='variacao.produto.nome', read_only=True)
+
+    class Meta:
+        model = LoteProdutoVariacao
+        fields = [
+            'id',
+            'variacao',
+            'sku',
+            'variacao_nome',
+            'produto_nome',
+            'numero_lote',
+            'data_fabricacao',
+            'data_validade',
+            'quantidade_inicial',
+            'quantidade_atual',
+            'status',
+            'observacao',
+            'criado_em',
+        ]
+        read_only_fields = ['id', 'quantidade_inicial', 'quantidade_atual', 'status', 'criado_em']
+        extra_kwargs = {
+            'numero_lote': {'required': False},
+            'data_fabricacao': {'required': False},
+        }
+
+    def validate(self, attrs):
+        data_fabricacao = attrs.get('data_fabricacao') or timezone.localdate()
+        data_validade = attrs.get('data_validade')
+
+        _validar_validade_nao_vencida(data_validade)
+
+        if data_validade is not None and data_validade < data_fabricacao:
+            raise serializers.ValidationError(
+                {'data_validade': 'A validade deve ser igual ou posterior à data de fabricação.'})
+
+        return attrs
+
+    def create(self, validated_data):
+        return criar_lote_variacao(**validated_data)
+
+
+class FabricarVariacaoSerializer(serializers.Serializer):
+    quantidade = serializers.IntegerField(min_value=1, max_value=100000)
+    data_validade = serializers.DateField()
+    data_fabricacao = serializers.DateField(required=False)
+    numero_lote = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    observacao = serializers.CharField(required=False, allow_blank=True)
+
+    def validate_numero_lote(self, value):
+        value = value.strip()
+        if value and LoteProdutoVariacao.objects.filter(numero_lote=value).exists():
+            raise serializers.ValidationError('Já existe um lote com este número.')
+        return value
+
+    def validate(self, attrs):
+        data_fabricacao = attrs.get('data_fabricacao') or timezone.localdate()
+        data_validade = attrs['data_validade']
+
+        _validar_validade_nao_vencida(data_validade)
+
+        if data_validade < data_fabricacao:
+            raise serializers.ValidationError(
+                {'data_validade': 'A validade deve ser igual ou posterior à data de fabricação.'})
+
+        return attrs
+
+
+class MovimentacaoEstoqueSerializer(serializers.ModelSerializer):
+    numero_lote = serializers.CharField(source='lote_produto_variacao.numero_lote', read_only=True)
+    variacao = serializers.IntegerField(source='lote_produto_variacao.variacao_id', read_only=True)
+    sku = serializers.CharField(source='lote_produto_variacao.variacao.sku', read_only=True)
+    variacao_nome = serializers.CharField(source='lote_produto_variacao.variacao.nome', read_only=True)
+    produto_nome = serializers.CharField(source='lote_produto_variacao.variacao.produto.nome', read_only=True)
+
     class Meta:
         model = MovimentacaoEstoque
         fields = [
             'id',
+            'lote_produto_variacao',
+            'numero_lote',
             'sku',
             'variacao',
             'variacao_nome',
@@ -245,7 +378,7 @@ class MovimentacaoEstoqueSerializer(VariacaoPorIdOuSkuMixin, serializers.ModelSe
 
     def create(self, validated_data):
         return registrar_movimentacao_estoque(
-            variacao_id=validated_data['variacao'].pk,
+            lote_id=validated_data['lote_produto_variacao'].pk,
             tipo=validated_data['tipo'],
             quantidade=validated_data['quantidade_movimentada'],
             usuario=self.context['request'].user,
@@ -253,13 +386,19 @@ class MovimentacaoEstoqueSerializer(VariacaoPorIdOuSkuMixin, serializers.ModelSe
         )
 
 
-class MovimentacaoMaterialSerializer(MateriaPrimaPorIdOuSkuMixin, serializers.ModelSerializer):
+class MovimentacaoMaterialSerializer(serializers.ModelSerializer):
+    numero_lote_fabricante = serializers.CharField(source='lote_materia_prima.numero_lote_fabricante', read_only=True)
+    materia_prima = serializers.IntegerField(source='lote_materia_prima.materia_prima_id', read_only=True)
+    sku = serializers.CharField(source='lote_materia_prima.materia_prima.sku', read_only=True)
+    materia_prima_nome = serializers.CharField(source='lote_materia_prima.materia_prima.nome', read_only=True)
     fornecedor_nome = serializers.CharField(source='fornecedor.nome', read_only=True)
 
     class Meta:
         model = MovimentacaoMaterial
         fields = [
             'id',
+            'lote_materia_prima',
+            'numero_lote_fabricante',
             'sku',
             'materia_prima',
             'materia_prima_nome',
@@ -282,7 +421,7 @@ class MovimentacaoMaterialSerializer(MateriaPrimaPorIdOuSkuMixin, serializers.Mo
 
     def create(self, validated_data):
         return registrar_movimentacao_material(
-            materia_prima_id=validated_data['materia_prima'].pk,
+            lote_id=validated_data['lote_materia_prima'].pk,
             tipo=validated_data['tipo'],
             quantidade=validated_data['quantidade_movimentada'],
             usuario=self.context['request'].user,
