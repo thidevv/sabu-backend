@@ -4,7 +4,7 @@ from .views import (
     MateriaPrimaViewSet,
     FichaTecnicaViewSet,
     MovimentacaoEstoqueViewSet, MovimentacaoMaterialViewSet, FornecedorViewSet, VinculoFornecedorViewSet,
-    CompraFornecedorViewSet,
+    CompraFornecedorViewSet, LoteMateriaPrimaViewSet, LoteProdutoVariacaoViewSet,
 )
 
 app_name = 'inventory'
@@ -12,6 +12,8 @@ app_name = 'inventory'
 router = DefaultRouter()
 router.register(r'materias-primas', MateriaPrimaViewSet, basename='materia-prima')
 router.register(r'fichas-tecnicas', FichaTecnicaViewSet, basename='ficha-tecnica')
+router.register(r'lotes-materia-prima', LoteMateriaPrimaViewSet, basename='lote-materia-prima')
+router.register(r'lotes-variacao', LoteProdutoVariacaoViewSet, basename='lote-variacao')
 router.register(r'movimentacoes-estoque', MovimentacaoEstoqueViewSet, basename='movimentacao-estoque')
 router.register(r'movimentacoes-material', MovimentacaoMaterialViewSet, basename='movimentacao-material')
 router.register(r'fornecedores', FornecedorViewSet, basename='fornecedor')
