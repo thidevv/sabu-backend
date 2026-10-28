@@ -8,12 +8,12 @@ from accounts.mixins import AdminOnlyViewSetMixin
 from core.exceptions import ErroDeDominio
 from core.mixins import FiltrosSomenteNaLeituraMixin
 from .filters import FichaTecnicaFilter, MovimentacaoEstoqueFilter, MovimentacaoMaterialFilter, VinculoFornecedorFilter, \
-    MateriaPrimaFilter, FornecedorFilter, CompraFornecedorFilter
+    MateriaPrimaFilter, FornecedorFilter, CompraFornecedorFilter, LoteMateriaPrimaFilter, LoteProdutoVariacaoFilter
 from .models import MateriaPrima, FichaTecnica, MovimentacaoEstoque, MovimentacaoMaterial, Fornecedor, \
-    VinculoFornecedor, CompraFornecedor
+    VinculoFornecedor, CompraFornecedor, LoteMateriaPrima, LoteProdutoVariacao
 from .schema import ficha_tecnica_schema, movimentacao_estoque_schema, \
     movimentacao_material_schema, vinculo_fornecedor_schema, compra_fornecedor_schema, fornecedor_schema, \
-    materia_prima_schema
+    materia_prima_schema, lote_materia_prima_schema, lote_produto_variacao_schema
 from .serializers import (
     MateriaPrimaSerializer,
     FichaTecnicaSerializer,
@@ -22,6 +22,7 @@ from .serializers import (
     MovimentacaoEstoqueSerializer, MovimentacaoMaterialSerializer, FornecedorSerializer,
     VinculoFornecedorUpdateSerializer, VinculoFornecedorDetalhadoSerializer, VinculoFornecedorSerializer,
     CompraFornecedorSerializer, CompraFornecedorDetalhadaSerializer, CompraFornecedorUpdateSerializer,
+    LoteMateriaPrimaSerializer, LoteProdutoVariacaoSerializer,
 )
 from .services import devolver_compra_fornecedor
 
@@ -70,6 +71,7 @@ class CompraFornecedorViewSet(AdminOnlyViewSetMixin,
     queryset = (
         CompraFornecedor.objects
         .select_related('fornecedor')
+        .prefetch_related('fornecedor_itens__lote_materiais')
         .order_by('-compra_realizada_em', '-id')
     )
     filterset_class = CompraFornecedorFilter
@@ -167,6 +169,26 @@ class FichaTecnicaViewSet(AdminOnlyViewSetMixin, FiltrosSomenteNaLeituraMixin, v
             status=status.HTTP_200_OK,
         )
 
+@lote_materia_prima_schema
+class LoteMateriaPrimaViewSet(AdminOnlyViewSetMixin,
+                              mixins.CreateModelMixin,
+                              mixins.RetrieveModelMixin,
+                              mixins.ListModelMixin,
+                              viewsets.GenericViewSet):
+    queryset = LoteMateriaPrima.objects.select_related('materia_prima').order_by('-criado_em', '-pk')
+    serializer_class = LoteMateriaPrimaSerializer
+    filterset_class = LoteMateriaPrimaFilter
+
+@lote_produto_variacao_schema
+class LoteProdutoVariacaoViewSet(AdminOnlyViewSetMixin,
+                                 mixins.CreateModelMixin,
+                                 mixins.RetrieveModelMixin,
+                                 mixins.ListModelMixin,
+                                 viewsets.GenericViewSet):
+    queryset = LoteProdutoVariacao.objects.select_related('variacao__produto').order_by('-criado_em', '-pk')
+    serializer_class = LoteProdutoVariacaoSerializer
+    filterset_class = LoteProdutoVariacaoFilter
+
 
 @movimentacao_estoque_schema
 class MovimentacaoEstoqueViewSet(AdminOnlyViewSetMixin,
@@ -176,7 +198,7 @@ class MovimentacaoEstoqueViewSet(AdminOnlyViewSetMixin,
                                  viewsets.GenericViewSet):
     queryset = (
         MovimentacaoEstoque.objects
-        .select_related('variacao__produto')
+        .select_related('lote_produto_variacao__variacao__produto')
         .order_by('-movimentado_em', '-pk')
     )
     serializer_class = MovimentacaoEstoqueSerializer
@@ -191,7 +213,7 @@ class MovimentacaoMaterialViewSet(AdminOnlyViewSetMixin,
                                  viewsets.GenericViewSet):
     queryset = (
         MovimentacaoMaterial.objects
-        .select_related('materia_prima', 'fornecedor')
+        .select_related('lote_materia_prima__materia_prima', 'fornecedor')
         .order_by('-movimentado_em', '-pk')
     )
     serializer_class = MovimentacaoMaterialSerializer
