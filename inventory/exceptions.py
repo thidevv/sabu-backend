@@ -45,3 +45,14 @@ class ItemDesativado(ErroDeDominio):
             f'O item "{produto}" (SKU {sku or '[sem SKU]'}) está desativado.',
             ids=ids, sku=sku, produto=produto,
         )
+
+
+class FichaTecnicaInexistente(ErroDeDominio):
+    codigo = 'ficha_tecnica_inexistente'
+    mensagem_padrao = 'A variação não possui ficha técnica ativa.'
+
+
+class LoteIndisponivel(ErroDeDominio):
+    status_code = 409
+    codigo = 'lote_indisponivel'
+    mensagem_padrao = 'O lote não aceita esta movimentação.'
