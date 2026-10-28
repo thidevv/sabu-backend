@@ -37,6 +37,9 @@ _EX_CLIENTE_ID_INVALIDO = exemplo_erro(
     'validation_error', 'Dados inválidos.',
     {'cliente_id': ['Informe um número.']},
     nome='cliente_id_invalido')
+_EX_LOTE_VENCIDO = exemplo_erro(
+    'lote_indisponivel',
+    'O lote "SAB-01-20261028-01" está vencido e não aceita esta movimentação.')
 
 
 def _acao(resumo, descricao):
@@ -69,7 +72,10 @@ pedido_schema = extend_schema_view(
     ),
     create=extend_schema(
         tags=[TAG_PEDIDOS], summary='Criar pedido',
-        description='Baixa o estoque de cada item na criação. Tudo roda em uma transação: '
+        description='Baixa o estoque de cada item na criação, seguindo o FEFO (primeiro lote a vencer, '
+                    'primeiro a sair): um item pode consumir mais de um lote, com uma saída por venda '
+                    'em cada lote. Lotes vencidos ou esgotados não são usados, então o saldo considerado '
+                    'é o dos lotes ativos. Tudo roda em uma transação: '
                     'se algum item não tiver saldo, nada é gravado. '
                     'Não pode haver variações repetidas entre os itens.',
         responses={
@@ -77,7 +83,7 @@ pedido_schema = extend_schema_view(
             400: resposta_erro('Dados inválidos.', EX_VALIDACAO,
                                _EX_ITENS_VAZIO, _EX_ITENS_REPETIDOS),
             401: ERRO_401, 403: ERRO_403,
-            409: resposta_erro('Estoque insuficiente.', _EX_ESTOQUE),
+            409: resposta_erro('Estoque insuficiente nos lotes ativos.', _EX_ESTOQUE),
         },
     ),
     partial_update=extend_schema(
@@ -93,8 +99,14 @@ pedido_schema = extend_schema_view(
         },
     ),
     concluir=_acao('Concluir pedido', 'Muda o status para concluído. O estoque já foi baixado na criação.'),
-    cancelar=_acao('Cancelar pedido (COM devolução ao estoque automaticamente)', 'Cancela o pedido e devolve o estoque dos itens. Movimenta o estoque.'),
-    estornar_com_devolucao=_acao('Estornar pedido COM devolução ao estoque', 'Muda o status para estornado. Movimenta o estoque.'),
+    cancelar=_acao('Cancelar pedido (COM devolução ao estoque automaticamente)',
+                   'Cancela o pedido e devolve cada item aos mesmos lotes de onde saiu, com um estorno '
+                   'de venda por lote. Movimenta o estoque. Se um lote já venceu, a quantidade volta '
+                   'para ele, mas não é somada ao estoque da variação.'),
+    estornar_com_devolucao=_acao('Estornar pedido COM devolução ao estoque',
+                                 'Muda o status para estornado e devolve cada item aos mesmos lotes de onde saiu, '
+                                 'com um estorno de venda por lote. Movimenta o estoque. Se um lote já venceu, '
+                                 'a quantidade volta para ele, mas não é somada ao estoque da variação.'),
     estornar_sem_devolucao=_acao('Estornar pedido SEM devolução ao estoque','Muda o status para estornado. Não movimenta o estoque.'),
 
 )
