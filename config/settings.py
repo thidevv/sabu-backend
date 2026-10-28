@@ -78,7 +78,7 @@ SIMPLE_JWT = {
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Sabu API',
-    'DESCRIPTION': 'Documentação da API do Sabu, um e-commerce com sistema de estoque integrado.',
+    'DESCRIPTION': 'Documentação da API do Sabu, um sistema de controle de estoque.',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
 }
