@@ -4,7 +4,7 @@ from collections import Counter
 from rest_framework import serializers
 from validate_docbr import CPF, CNPJ
 
-from core.mixins import ValidaEnderecoMixin, VariacaoPorIdOuSkuMixin
+from core.mixins import ValidaEnderecoMixin
 from orders.models import Pedido, PedidoItem, Cliente, StatusPedido
 from orders.services import criar_pedido_completo
 
@@ -42,7 +42,7 @@ class ClienteSerializer(serializers.ModelSerializer):
         return limpo
 
 
-class PedidoItemSerializer(VariacaoPorIdOuSkuMixin, serializers.ModelSerializer):
+class PedidoItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = PedidoItem
         fields = [
