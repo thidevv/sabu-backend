@@ -6,6 +6,9 @@ from accounts.models import Usuario
 from catalog.models import ProdutoVariacao
 from orders.models import Pedido
 
+NUMERO_LOTE_NAO_INFORMADO = 'Não informado'
+
+
 class StatusCompraFornecedor(models.TextChoices):
     CONCLUIDO = 'CONCLUIDO', 'Concluido'
     DEVOLVIDO = 'DEVOLVIDO', 'Devolvido ao Fornecedor'
@@ -134,11 +137,88 @@ class CompraFornecedorItem(models.Model):
         ]
 
 
+class StatusLote(models.TextChoices):
+    ATIVO = 'ATIVO', 'Ativo'
+    ESGOTADO = 'ESGOTADO', 'Esgotado'
+    VENCIDO = 'VENCIDO', 'Vencido'
+
+class LoteMateriaPrima(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    materia_prima = models.ForeignKey(MateriaPrima, on_delete=models.PROTECT, related_name='lotes')
+    compra_fornecedor_item = models.ForeignKey(CompraFornecedorItem, on_delete=models.PROTECT, null=True, blank=True, related_name='lote_materiais',)
+    numero_lote_fabricante = models.CharField(max_length=50, blank=True, default=NUMERO_LOTE_NAO_INFORMADO)
+    quantidade_inicial = models.DecimalField(max_digits=10, decimal_places=3, default=0)
+    quantidade_atual = models.DecimalField(max_digits=10, decimal_places=3, default=0)
+    status = models.CharField(max_length=20, choices=StatusLote.choices, default=StatusLote.ATIVO)
+    data_validade = models.DateField(null=True, blank=True)
+    observacao = models.TextField(blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'lote_materia_prima'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['compra_fornecedor_item'],
+                name='uq_lote_materia_prima_compra_fornecedor_item',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(quantidade_atual__gte=0),
+                name='ck_lote_materia_prima_quantidade_nao_negativa',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(quantidade_inicial__gte=models.F('quantidade_atual')),
+                name='ck_lote_materia_prima_atual_lte_inicial',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['materia_prima', 'status', 'data_validade'], name='ix_lote_mp_fefo'),
+        ]
+
+    def save(self, *args, **kwargs):
+        self.numero_lote_fabricante = (self.numero_lote_fabricante or '').strip() or NUMERO_LOTE_NAO_INFORMADO
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Lote {self.numero_lote_fabricante} - {self.materia_prima}"
+
+
+class LoteProdutoVariacao(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    variacao = models.ForeignKey(ProdutoVariacao, on_delete=models.PROTECT, related_name='lote_variacoes')
+    numero_lote = models.CharField(max_length=50, unique=True)
+    data_fabricacao = models.DateField()
+    data_validade = models.DateField()
+    quantidade_inicial = models.PositiveIntegerField(default=0)
+    quantidade_atual = models.PositiveIntegerField(default=0)
+    status = models.CharField(max_length=20, choices=StatusLote.choices, default=StatusLote.ATIVO)
+    observacao = models.TextField(blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'lote_produto_variacao'
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(quantidade_atual__gte=0),
+                name='ck_lote_produto_variacao_quantidade_nao_negativa',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(quantidade_inicial__gte=models.F('quantidade_atual')),
+                name='ck_lote_produto_variacao_atual_lte_inicial',
+            )
+        ]
+        indexes = [
+            models.Index(fields=['variacao', 'status', 'data_validade'], name='ix_lote_variacao_fefo'),
+        ]
+
+    def __str__(self):
+        return f"Lote {self.numero_lote} - {self.variacao}"
+
+
 class VinculoFornecedor(models.Model):
     id = models.BigAutoField(primary_key=True)
     fornecedor = models.ForeignKey(Fornecedor, on_delete=models.PROTECT, related_name='vinculos')
     materia_prima = models.ForeignKey(MateriaPrima, on_delete=models.PROTECT, related_name='vinculos')
-    custo_unitario_fornecedor = models.DecimalField(max_digits=10, decimal_places=4) # Preço sugerido do fornecedor
+    custo_unitario_fornecedor = models.DecimalField(max_digits=10, decimal_places=4)
     sku_materia_prima_fornecedor = models.CharField(max_length=50, blank=True)
     apagado_em = models.DateTimeField(blank=True, null=True)
 
@@ -190,7 +270,7 @@ TIPOS_QUE_DIMINUEM = {TipoMovimentacaoEstoque.SAIDA_VENDA, TipoMovimentacaoEstoq
 
 class MovimentacaoEstoque(models.Model):
     id = models.BigAutoField(primary_key=True)
-    variacao = models.ForeignKey(ProdutoVariacao, on_delete=models.PROTECT, related_name='movimentacoes_estoque')
+    lote_produto_variacao = models.ForeignKey(LoteProdutoVariacao, on_delete=models.PROTECT, related_name='movimentacoes_estoque',)
     usuario = models.ForeignKey(Usuario, on_delete=models.SET_NULL, null=True, related_name='movimentacoes_estoque')
     pedido = models.ForeignKey(Pedido, on_delete=models.PROTECT, null=True, related_name='movimentacoes_estoque')
     tipo = models.CharField(max_length=20, choices=TipoMovimentacaoEstoque.choices)
@@ -218,7 +298,7 @@ class MovimentacaoEstoque(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.tipo} - Variacao ID: {self.variacao} ({self.quantidade_movimentada})"
+        return f"{self.tipo} - Lote ID: {self.lote_produto_variacao_id} ({self.quantidade_movimentada})"
 
 
 class TipoMovimentacaoMaterial(models.TextChoices):
@@ -235,7 +315,7 @@ TIPOS_MATERIAL_QUE_DIMINUEM = {TipoMovimentacaoMaterial.SAIDA_PRODUCAO, TipoMovi
 
 class MovimentacaoMaterial(models.Model):
     id = models.BigAutoField(primary_key=True)
-    materia_prima = models.ForeignKey(MateriaPrima, on_delete=models.PROTECT, related_name='movimentacoes_material')
+    lote_materia_prima = models.ForeignKey(LoteMateriaPrima, on_delete=models.PROTECT, related_name='movimentacoes_material',)
     usuario = models.ForeignKey(Usuario, on_delete=models.SET_NULL, null=True, related_name='movimentacoes_material')
     fornecedor = models.ForeignKey(Fornecedor, on_delete=models.PROTECT, null=True, related_name='movimentacoes_material')
     tipo = models.CharField(max_length=20, choices=TipoMovimentacaoMaterial.choices)
@@ -253,4 +333,4 @@ class MovimentacaoMaterial(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.tipo} - Matéria-prima ID: {self.materia_prima} ({self.quantidade_movimentada})"
+        return f"{self.tipo} - Lote ID: {self.lote_materia_prima_id} ({self.quantidade_movimentada})"
