@@ -9,6 +9,8 @@ from accounts.utils import usuario_e_admin
 from core.exceptions import ErroDeDominio
 from core.mixins import FiltrosSomenteNaLeituraMixin
 from inventory.models import FichaTecnica
+from inventory.serializers import FabricarVariacaoSerializer, LoteProdutoVariacaoSerializer
+from inventory.services import fabricar_variacao
 from .filters import ProdutoFilter, ProdutoVariacaoFilter
 from .models import Categoria, Produto, ProdutoVariacao, TipoPele
 from .schema import categoria_schema, tipo_pele_schema, produto_schema, variacao_schema
@@ -57,7 +59,7 @@ class ProdutoViewSet(PublicReadAdminWriteViewSetMixin, viewsets.ModelViewSet):
 
 @variacao_schema
 class ProdutoVariacaoViewSet(PublicReadAdminWriteViewSetMixin, FiltrosSomenteNaLeituraMixin,
-                             viewsets.ModelViewSet):
+                           viewsets.ModelViewSet):
     queryset = ProdutoVariacao.objects.select_related('produto')
     filterset_class = ProdutoVariacaoFilter
 
@@ -72,8 +74,6 @@ class ProdutoVariacaoViewSet(PublicReadAdminWriteViewSetMixin, FiltrosSomenteNaL
         if not usuario_e_admin(self.request.user):
             return qs.filter(apagado_em__isnull=True, produto__esta_ativo=True)
 
-        # Admin: list/retrieve dependem do filtro `apagadas`; restaurar enxerga tudo;
-        # update/destroy só valem nas variações ativas.
         if self.action not in ('list', 'retrieve', 'restaurar'):
             qs = qs.filter(apagado_em__isnull=True)
         return qs
@@ -108,3 +108,18 @@ class ProdutoVariacaoViewSet(PublicReadAdminWriteViewSetMixin, FiltrosSomenteNaL
             ).update(apagada_em=None)
 
         return Response(ProdutoVariacaoSerializer(variacao).data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], url_path='fabricar')
+    def fabricar(self, request, pk=None):
+        variacao = self.get_object()
+
+        serializer = FabricarVariacaoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        lote = fabricar_variacao(
+            variacao_id=variacao.pk,
+            usuario=request.user,
+            **serializer.validated_data,
+        )
+
+        return Response(LoteProdutoVariacaoSerializer(lote).data, status=status.HTTP_201_CREATED)
