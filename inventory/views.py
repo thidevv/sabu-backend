@@ -43,6 +43,19 @@ class MateriaPrimaViewSet(AdminOnlyViewSetMixin, viewsets.ModelViewSet):
                 apagado_em__isnull=True,
             ).update(apagado_em=timestamp)
 
+    @action(detail=True, methods=['patch'], url_path='restaurar')
+    def restaurar(self, request, pk=None):
+        materia_prima = self.get_object()
+
+        if not materia_prima.apagada_em:
+            raise ErroDeDominio('Esta matéria-prima não está apagada.')
+
+        with transaction.atomic():
+            materia_prima.apagada_em = None
+            materia_prima.save(update_fields=['apagada_em'])
+
+        return Response(MateriaPrimaSerializer(materia_prima).data, status=status.HTTP_200_OK)
+
 @fornecedor_schema
 class FornecedorViewSet(AdminOnlyViewSetMixin, viewsets.ModelViewSet):
     queryset = Fornecedor.objects.prefetch_related('categorias').order_by('nome')
@@ -59,6 +72,19 @@ class FornecedorViewSet(AdminOnlyViewSetMixin, viewsets.ModelViewSet):
                 fornecedor_id=instance.pk,
                 apagado_em__isnull=True,
             ).update(apagado_em=timestamp)
+
+    @action(detail=True, methods=['patch'], url_path='restaurar')
+    def restaurar(self, request, pk=None):
+        fornecedor = self.get_object()
+
+        if not fornecedor.apagado_em:
+            raise ErroDeDominio('Esta fornecedor não está apagado.')
+
+        with transaction.atomic():
+            fornecedor.apagado_em = None
+            fornecedor.save(update_fields=['apagado_em'])
+
+        return Response(FornecedorSerializer(fornecedor).data, status=status.HTTP_200_OK)
 
 @compra_fornecedor_schema
 class CompraFornecedorViewSet(AdminOnlyViewSetMixin,
