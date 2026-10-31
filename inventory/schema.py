@@ -42,36 +42,56 @@ _EX_LOTE_VENCIDO = exemplo_erro(
     'O lote "LT-2026-01" está vencido e não aceita esta movimentação.',
 )
 
-materia_prima_schema = extend_schema_view(**crud_schema(
-    TAG, 'matéria-prima', 'matérias-primas',
-    leitura=MateriaPrimaSerializer,
-    destroy_extra={},
-    params={'retrieve': [PARAM_APAGADAS]},
-    list_extra={400: ERRO_400_FILTRO},
-    retrieve_extra={400: ERRO_400_FILTRO},
-    descricoes={
-        'list': 'Ordenadas por nome. Sem `apagadas`, retorna ativas e apagadas. '
-                '`apagadas=true`: só apagadas; `apagadas=false`: só ativas. '
-                '`quantidade_estoque` é a soma das quantidades dos lotes ativos (não vencidos e não esgotados).',
-        'destroy': 'Exclusão lógica. Os vínculos de fornecedor ativos desta matéria-prima '
-                   'também são apagados logicamente.',
-    },
-))
+materia_prima_schema = extend_schema_view(
+    **crud_schema(
+        TAG, 'matéria-prima', 'matérias-primas',
+        leitura=MateriaPrimaSerializer,
+        destroy_extra={},
+        params={'retrieve': [PARAM_APAGADAS]},
+        list_extra={400: ERRO_400_FILTRO},
+        retrieve_extra={400: ERRO_400_FILTRO},
+        descricoes={
+            'list': 'Ordenadas por nome. Sem `apagadas`, retorna ativas e apagadas. '
+                    '`apagadas=true`: só apagadas; `apagadas=false`: só ativas. '
+                    '`quantidade_estoque` é a soma das quantidades dos lotes ativos (não vencidos e não esgotados).',
+            'destroy': 'Exclusão lógica. Os vínculos de fornecedor ativos desta matéria-prima '
+                       'também são apagados logicamente.',
+        },
+    ),
+    restaurar=extend_schema(
+        tags=[TAG],
+        summary='Restaurar matéria-prima',
+        description='Desfaz a exclusão lógica apenas para a matéria-prima; não restaura os vínculos de fornecedor junto.',
+        request=None,
+        responses={200: MateriaPrimaSerializer, 400: ERRO_400,
+                   401: ERRO_401, 403: ERRO_403, 404: ERRO_404},
+    ),
+)
 
-fornecedor_schema = extend_schema_view(**crud_schema(
-    TAG, 'fornecedor', 'fornecedores',
-    leitura=FornecedorSerializer,
-    destroy_extra={},
-    params={'retrieve': [PARAM_APAGADOS]},
-    list_extra={400: ERRO_400_FILTRO_APAGADOS},
-    retrieve_extra={400: ERRO_400_FILTRO_APAGADOS},
-    descricoes={
-        'list': 'Ordenados por nome. Sem `apagados`, retorna ativos e apagados. '
-                '`apagados=true`: só apagados; `apagados=false`: só ativos.',
-        'destroy': 'Exclusão lógica. Os vínculos de fornecedor ativos deste fornecedor '
-                   'também são apagados logicamente.',
-    },
-))
+fornecedor_schema = extend_schema_view(
+    **crud_schema(
+        TAG, 'fornecedor', 'fornecedores',
+        leitura=FornecedorSerializer,
+        destroy_extra={},
+        params={'retrieve': [PARAM_APAGADOS]},
+        list_extra={400: ERRO_400_FILTRO_APAGADOS},
+        retrieve_extra={400: ERRO_400_FILTRO_APAGADOS},
+        descricoes={
+            'list': 'Ordenados por nome. Sem `apagados`, retorna ativos e apagados. '
+                    '`apagados=true`: só apagados; `apagados=false`: só ativos.',
+            'destroy': 'Exclusão lógica. Os vínculos de fornecedor ativos deste fornecedor '
+                       'também são apagados logicamente.',
+        },
+    ),
+    restaurar=extend_schema(
+        tags=[TAG],
+        summary='Restaurar fornecedor',
+        description='Desfaz a exclusão lógica apenas para o fornecedor; não restaura os vínculos de fornecedor junto.',
+        request=None,
+        responses={200: FornecedorSerializer, 400: ERRO_400,
+                   401: ERRO_401, 403: ERRO_403, 404: ERRO_404},
+    ),
+)
 
 compra_fornecedor_schema = extend_schema_view(
     **crud_schema(
@@ -221,7 +241,7 @@ ficha_tecnica_schema = extend_schema_view(
     restaurar=extend_schema(
         tags=[TAG],
         summary='Restaurar ficha técnica',
-        description='Desfaz a exclusão lógica. A variação precisa estar ativa (restaure-a antes).',
+        description='Desfaz a exclusão lógica. A variação e a matéria-prima precisam estar ativas (restaure-as antes).',
         request=None,
         responses={200: FichaTecnicaDetalhadaSerializer, 400: ERRO_400,
                    401: ERRO_401, 403: ERRO_403, 404: ERRO_404},
