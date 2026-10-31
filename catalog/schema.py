@@ -60,7 +60,7 @@ variacao_schema = extend_schema_view(
     restaurar=extend_schema(
         tags=[TAG],
         summary='Restaurar variação',
-        description='Desfaz a exclusão lógica e restaura as fichas técnicas apagadas junto com ela.',
+        description='Desfaz a exclusão lógica apenas para a variação; não restaura as fichas técnicas junto.',
         request=None,
         responses={200: ProdutoVariacaoSerializer, 400: ERRO_400,
                    401: ERRO_401, 403: ERRO_403, 404: ERRO_404},

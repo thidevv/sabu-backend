@@ -97,15 +97,8 @@ class ProdutoVariacaoViewSet(PublicReadAdminWriteViewSetMixin, FiltrosSomenteNaL
             raise ErroDeDominio('Esta variação não está apagada.')
 
         with transaction.atomic():
-            timestamp_exclusao = variacao.apagado_em
-
             variacao.apagado_em = None
             variacao.save(update_fields=['apagado_em'])
-
-            FichaTecnica.objects.filter(
-                variacao_id=variacao.pk,
-                apagada_em=timestamp_exclusao,
-            ).update(apagada_em=None)
 
         return Response(ProdutoVariacaoSerializer(variacao).data, status=status.HTTP_200_OK)
 
