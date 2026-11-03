@@ -100,6 +100,14 @@ class PedidoSerializer(PedidoDetalhadoSerializer):
 
         return value
 
+    def validate_cep(self, value):
+        if not re.match(r'^\d{5}-\d{3}$', value):
+            raise serializers.ValidationError('O CEP deve estar no formato correto. Exemplo: 13251-441')
+
+        limpo = value.replace('-', '')
+
+        return limpo
+
     def create(self, validated_data):
         itens_data = validated_data.pop('itens')
 
