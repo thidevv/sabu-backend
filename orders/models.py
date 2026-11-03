@@ -33,6 +33,37 @@ class Cliente(models.Model):
         return self.nome
 
 
+SIGLAS_ESTADOS_PERMITIDAS = (
+    ('AC', 'Acre'),
+    ('AL', 'Alagoas'),
+    ('AP', 'Amapá'),
+    ('AM', 'Amazonas'),
+    ('BA', 'Bahia'),
+    ('CE', 'Ceará'),
+    ('DF', 'Distrito Federal'),
+    ('ES', 'Espírito Santo'),
+    ('GO', 'Goiás'),
+    ('MA', 'Maranhão'),
+    ('MT', 'Mato Grosso'),
+    ('MS', 'Mato Grosso do Sul'),
+    ('MG', 'Minas Gerais'),
+    ('PA', 'Pará'),
+    ('PB', 'Paraíba'),
+    ('PR', 'Paraná'),
+    ('PE', 'Pernambuco'),
+    ('PI', 'Piauí'),
+    ('RJ', 'Rio de Janeiro'),
+    ('RN', 'Rio Grande do Norte'),
+    ('RS', 'Rio Grande do Sul'),
+    ('RO', 'Rondônia'),
+    ('RR', 'Roraima'),
+    ('SC', 'Santa Catarina'),
+    ('SP', 'São Paulo'),
+    ('SE', 'Sergipe'),
+    ('TO', 'Tocantins'),
+)
+
+
 class Pedido(models.Model):
     id = models.BigAutoField(primary_key=True)
     cliente = models.ForeignKey(Cliente, on_delete=models.SET_NULL, null=True, blank=True, related_name='pedidos')
@@ -42,7 +73,7 @@ class Pedido(models.Model):
     complemento = models.CharField(max_length=50, blank=True)
     bairro = models.CharField(max_length=50, blank=True)
     cidade = models.CharField(max_length=50, blank=True)
-    sigla_estado = models.CharField(max_length=2, blank=True)
+    sigla_estado = models.CharField(max_length=2, blank=True, choices=SIGLAS_ESTADOS_PERMITIDAS)
     status = models.CharField(max_length=30, choices=StatusPedido.choices, default='PENDENTE')
     valor_total = models.DecimalField(max_digits=10, decimal_places=2) # Isso deve ser somente uma snapshot do valor do pedido
     observacao = models.TextField(blank=True)
