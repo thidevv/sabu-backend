@@ -165,6 +165,10 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
+]
+
 # Necessário para o Django usar o modelo customizado de usuário (que está no app "accounts")
 AUTH_USER_MODEL = 'accounts.Usuario'
 
