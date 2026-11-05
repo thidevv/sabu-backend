@@ -2,44 +2,18 @@ import re
 from collections import Counter
 
 from rest_framework import serializers
-from validate_docbr import CPF, CNPJ
 
-from core.mixins import ValidaEnderecoMixin
+from core.mixins import ValidaEnderecoMixin, ValidaNomeCompletoMixin, ValidaCpfCnpjMixin
 from orders.models import Pedido, PedidoItem, Cliente, StatusPedido
 from orders.services import criar_pedido_completo
 
 STATUS_EDITAVEIS = {StatusPedido.PENDENTE}
 
-class ClienteSerializer(serializers.ModelSerializer):
+class ClienteSerializer(serializers.ModelSerializer, ValidaNomeCompletoMixin, ValidaCpfCnpjMixin):
     class Meta:
         model = Cliente
         fields = ['id', 'nome', 'telefone', 'cpf_cnpj', 'ultimo_pedido_em', 'criado_em']
         read_only_fields = ['ultimo_pedido_em', 'criado_em']
-
-    def validate_nome(self, value):
-        if not re.match(r'^[a-zA-Za-fA-Fà-úÀ-ÚçÇ\s]+$', value):
-            raise serializers.ValidationError("O nome não pode conter números ou caracteres especiais.")
-
-        return value
-
-    def validate_cpf_cnpj(self, value):
-        if not value:
-            return None
-
-        limpo = re.sub(r'[^0-9A-Za-z]', '', value).upper()
-
-        if len(limpo) == 11:
-            if not limpo.isdigit() or not CPF().validate(limpo):
-                raise serializers.ValidationError('CPF inválido.')
-        elif len(limpo) == 14:
-            if not CNPJ().validate(limpo):
-                raise serializers.ValidationError('CNPJ inválido.')
-        else:
-            raise serializers.ValidationError(
-                'Informe um CPF (11 caracteres) ou um CNPJ (14 caracteres).'
-            )
-
-        return limpo
 
 
 class PedidoItemSerializer(serializers.ModelSerializer):

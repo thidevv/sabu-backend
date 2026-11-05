@@ -1,9 +1,9 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+
+from core.mixins import ValidaNomeCompletoMixin, ValidaCpfCnpjMixin
 from .models import Usuario
 import re
-
-from validate_docbr import CPF, CNPJ
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -25,7 +25,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         return data
 
 
-class UsuarioCadastroSerializer(serializers.ModelSerializer):
+class UsuarioCadastroSerializer(serializers.ModelSerializer, ValidaNomeCompletoMixin, ValidaCpfCnpjMixin):
     senha = serializers.CharField(
         write_only=True,
         required=True,
@@ -41,12 +41,6 @@ class UsuarioCadastroSerializer(serializers.ModelSerializer):
             'telefone',
             'cpf_cnpj',
         ]
-
-    def validate_nome(self, value):
-        if not re.match(r'^[a-zA-Za-fA-Fà-úÀ-ÚçÇ\s]+$', value):
-            raise serializers.ValidationError("O nome não pode conter números ou caracteres especiais.")
-
-        return value
 
     def validate_senha(self, value):
         errors = []
@@ -67,25 +61,6 @@ class UsuarioCadastroSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(errors)
 
         return value
-
-    def validate_cpf_cnpj(self, value):
-        if not value:
-            return None
-
-        limpo = re.sub(r'[^0-9A-Za-z]', '', value).upper()
-
-        if len(limpo) == 11:
-            if not limpo.isdigit() or not CPF().validate(limpo):
-                raise serializers.ValidationError('CPF inválido.')
-        elif len(limpo) == 14:
-            if not CNPJ().validate(limpo):
-                raise serializers.ValidationError('CNPJ inválido.')
-        else:
-            raise serializers.ValidationError(
-                'Informe um CPF (11 caracteres) ou um CNPJ (14 caracteres).'
-            )
-
-        return limpo
 
     def create(self, validated_data):
         senha = validated_data.pop('senha')
