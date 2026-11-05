@@ -86,6 +86,9 @@ class Fornecedor(models.Model):
             )
         ]
 
+    def __str__(self):
+        return self.nome
+
 
 class FornecedorCategoria(models.Model):
     id = models.BigAutoField(primary_key=True)
@@ -298,7 +301,7 @@ class MovimentacaoEstoque(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.tipo} - Lote ID: {self.lote_produto_variacao_id} ({self.quantidade_movimentada})"
+        return f"{self.tipo} - ID do lote: {self.lote_produto_variacao_id} ({self.quantidade_movimentada})"
 
 
 class TipoMovimentacaoMaterial(models.TextChoices):
@@ -333,4 +336,4 @@ class MovimentacaoMaterial(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.tipo} - Lote ID: {self.lote_materia_prima_id} ({self.quantidade_movimentada})"
+        return f"{self.tipo} - ID do lote: {self.lote_materia_prima_id} ({self.quantidade_movimentada})"
