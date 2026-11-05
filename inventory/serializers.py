@@ -50,6 +50,20 @@ class MateriaPrimaSerializer(serializers.ModelSerializer):
         sku_normalizado = value.strip().upper()
         return sku_normalizado
 
+    def validate_unidade_medida(self, value):
+        if self.instance is None:
+            return value
+
+        if value == self.instance.unidade_medida:
+            return value
+
+        possui_movimentacao = MovimentacaoMaterial.objects.filter(lote_materia_prima__materia_prima=self.instance).exists()
+
+        if possui_movimentacao:
+            raise serializers.ValidationError('A unidade de medida não pode ser alterada, pois existem movimentações vinculadas a lotes desta matéria-prima.')
+
+        return value
+
 
 class FornecedorSerializer(serializers.ModelSerializer):
     categorias = CategoriasFornecedorField(allow_empty=False)
