@@ -22,6 +22,20 @@ PARAM_APAGADOS = OpenApiParameter(
     required=False,
     description='Omitido: ativos e apagados. `true`: só apagados. `false`: só ativos.',
 )
+
+PARAM_ORDERING_COMPRA_FORNECEDOR = OpenApiParameter(
+    name="ordering",
+    type=str,
+    location=OpenApiParameter.QUERY,
+    required=False,
+    description=(
+        "Campos de ordenação: compra_realizada_em, valor_total, id. "
+        "Use '-' para ordem decrescente (ex.: ?ordering=-compra_realizada_em). "
+        "Separe por vírgula para ordenar por mais de um campo "
+        "(ex.: ?ordering=-valor_total,compra_realizada_em)."
+    ),
+)
+
 ERRO_400_FILTRO_APAGADOS = resposta_erro(
     'Filtro inválido.',
     exemplo_erro('validation_error', 'Dados inválidos.', {'apagados': ['Informe true ou false.']}),
@@ -56,7 +70,12 @@ materia_prima_schema = extend_schema_view(
                     '`quantidade_estoque` é a soma das quantidades dos lotes ativos (não vencidos e não esgotados) '
                     'e usa até 3 casas decimais. '
                     '`custo_unitario_referencia` usa até 4 casas decimais.',
-            'create': '`custo_unitario_referencia` aceita até 4 casas decimais e não pode ser negativo.',
+            'create': '`custo_unitario_referencia` aceita até 4 casas decimais e não pode ser negativo. '
+                      'Categorias permitidas: OLEOS_E_GORDURAS (Óleos e gorduras), AGENTES_SAPONIFICANTES (Agentes saponificantes), '
+                      'LIQUIDOS_DILUICAO (Líquidos de diluição), AROMAS_E_FRAGANCIAS (Aromas e fragâncias), '
+                      'CORANTES_E_PIGMENTOS (Corantes e pigmentos), ADITIVOS_E_ATIVOS (Aditivos e ativos), '
+                      'EMBALAGENS_E_ROTULOS (Embalagens e rótulos), MATERIAL_DE_APOIO (Material de apoio). '
+                      'Unidades de medida permitidas: KG (Quilograma), G (Grama), MG (Miligrama), L (Litro), ML (Mililitro), UN (Unidade).',
             'update': 'Não é possível alterar a `unidade_medida` quando existem movimentações '
                       'vinculadas à matéria-prima; nesse caso a requisição retorna erro 400. '
                       '`custo_unitario_referencia` aceita até 4 casas decimais e não pode ser negativo.',
@@ -106,6 +125,11 @@ compra_fornecedor_schema = extend_schema_view(
     **crud_schema(
         TAG, 'compra', 'compras',
         leitura=CompraFornecedorDetalhadaSerializer,
+        params={
+            'list': [
+                PARAM_ORDERING_COMPRA_FORNECEDOR
+            ]
+        },
         list_extra={
             400: resposta_erro(
                 'Filtro inválido.',
