@@ -386,7 +386,8 @@ movimentacao_estoque_schema = extend_schema_view(
                     '(`lote_produto_variacao`). Para um lote novo, crie-o vazio antes e registre uma '
                     '`ENTRADA`. Venda/estorno exigem pedido e são gerados automaticamente pelos pedidos; '
                     'os demais tipos não aceitam. Entrada, saída por venda e saída por produção não são '
-                    'aceitas em lote vencido. O estoque da variação soma apenas os lotes ativos.',
+                    'aceitas em lote vencido. O estoque da variação soma apenas os lotes ativos.'
+                    'Tipos manuais permitidos: ENTRADA, AJUSTE_OU_PERDA, ESTORNO_VENDA (caso queira colocar uma observação manualmente, sem utilizar a automática do sistema)',
         responses={
             201: MovimentacaoEstoqueSerializer,
             400: resposta_erro(
@@ -438,7 +439,8 @@ movimentacao_material_schema = extend_schema_view(
                     'A saída por devolução é gerada automaticamente pela devolução da compra. '
                     'Entrada e saída por produção não são aceitas em lote vencido. '
                     'O estoque da matéria-prima soma apenas os lotes ativos. '
-                    '`quantidade_movimentada` aceita até 3 casas decimais e deve ser maior que 0.',
+                    '`quantidade_movimentada` aceita até 3 casas decimais e deve ser maior que 0. '
+                    'Tipos manuais permitidos: ENTRADA, AJUSTE_OU_PERDA',
         responses={
             201: MovimentacaoMaterialSerializer,
             400: resposta_erro(
