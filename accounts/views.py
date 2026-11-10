@@ -1,12 +1,16 @@
 from rest_framework import status, generics
 from rest_framework.response import Response
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from .models import Usuario
 from .permissions import IsSuperAdminUserCargo
-from .schema import token_schema, cadastro_schema
+from .schema import token_schema, cadastro_schema, refresh_schema
 from .serializers import CustomTokenObtainPairSerializer, UsuarioCadastroSerializer
 
+
+@refresh_schema
+class CustomTokenRefreshView(TokenRefreshView):
+    pass
 
 @token_schema
 class CustomTokenObtainPairView(TokenObtainPairView):

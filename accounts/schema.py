@@ -1,5 +1,6 @@
 from drf_spectacular.utils import extend_schema, inline_serializer
 from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 
 from core.schema import ERRO_400, ERRO_401, ERRO_403, exemplo_erro, resposta_erro
 
@@ -42,4 +43,25 @@ cadastro_schema = extend_schema(
     summary='Cadastrar administrador',
     description='Restrito a administradores com `is_superuser`. Admin comum recebe 403.',
     responses={201: _CadastroResposta, 400: ERRO_400, 401: ERRO_401, 403: ERRO_403},
+)
+
+_RefreshResposta = inline_serializer('RefreshResposta', fields={
+    'access': serializers.CharField(help_text='Novo JWT de acesso.'),
+    'refresh': serializers.CharField(
+        required=False,
+        help_text='Novo JWT de renovação.',
+    ),
+})
+
+refresh_schema = extend_schema(
+    tags=[TAG],
+    summary='Renovar token (JWT)',
+    description='Recebe um refresh token válido e devolve um novo access token.',
+    request=TokenRefreshSerializer,
+    responses={
+        200: _RefreshResposta,
+        400: ERRO_400,
+        401: resposta_erro('Refresh token inválido, expirado ou na blacklist.', exemplo_erro(
+            'token_not_valid', 'Token is invalid or expired')),
+    },
 )
