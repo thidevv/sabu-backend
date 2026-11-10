@@ -53,7 +53,16 @@ materia_prima_schema = extend_schema_view(
         descricoes={
             'list': 'Ordenadas por nome. Sem `apagadas`, retorna ativas e apagadas. '
                     '`apagadas=true`: só apagadas; `apagadas=false`: só ativas. '
-                    '`quantidade_estoque` é a soma das quantidades dos lotes ativos (não vencidos e não esgotados).',
+                    '`quantidade_estoque` é a soma das quantidades dos lotes ativos (não vencidos e não esgotados) '
+                    'e usa até 3 casas decimais. '
+                    '`custo_unitario_referencia` usa até 4 casas decimais.',
+            'create': '`custo_unitario_referencia` aceita até 4 casas decimais e não pode ser negativo.',
+            'update': 'Não é possível alterar a `unidade_medida` quando existem movimentações '
+                      'vinculadas à matéria-prima; nesse caso a requisição retorna erro 400. '
+                      '`custo_unitario_referencia` aceita até 4 casas decimais e não pode ser negativo.',
+            'partial_update': 'Não é possível alterar a `unidade_medida` quando existem movimentações '
+                              'vinculadas à matéria-prima; nesse caso a requisição retorna erro 400. '
+                              '`custo_unitario_referencia` aceita até 4 casas decimais e não pode ser negativo.',
             'destroy': 'Exclusão lógica. Os vínculos de fornecedor ativos desta matéria-prima '
                        'também são apagados logicamente.',
         },
@@ -107,7 +116,9 @@ compra_fornecedor_schema = extend_schema_view(
         descricoes={
             'list': 'Ordenadas da mais recente para a mais antiga. '
                     'Use `fornecedor_id` para filtrar por fornecedor. '
-                    'Cada item informa o `lote` gerado por ele.',
+                    'Cada item informa o `lote` gerado por ele. '
+                    '`quantidade_item` usa até 3 casas decimais. '
+                    '`valor_total` e `custo_unitario_momento_compra` usam até 4 casas decimais.',
             'partial_update': 'Apenas `observacao` é editável.',
         },
         ops=('list', 'retrieve', 'partial_update'),
@@ -119,7 +130,9 @@ compra_fornecedor_schema = extend_schema_view(
                     'de matéria-prima, criado vazio e em seguida abastecido por uma movimentação '
                     'de entrada. `numero_lote_fabricante` é opcional (vazio é gravado como '
                     '"Não informado") e `data_validade` é opcional e não pode estar no passado. '
-                    'É obrigatório ao menos um item, sem repetir matéria-prima.',
+                    'É obrigatório ao menos um item, sem repetir matéria-prima. '
+                    '`quantidade_item` aceita até 3 casas decimais, deve ser maior que 0 e no máximo 999. '
+                    '`valor_total` e `custo_unitario_momento_compra` aceitam até 4 casas decimais.',
         responses={
             201: CompraFornecedorSerializer,
             400: resposta_erro(
@@ -152,7 +165,8 @@ compra_fornecedor_schema = extend_schema_view(
         description='Devolve a compra ao fornecedor com uma saída por devolução no lote de cada item, '
                     'e retorna a compra atualizada. Os lotes não são apagados: ao zerar, ficam com '
                     'status `ESGOTADO`. Só é permitido quando o status da compra permite a transição '
-                    'para devolvida e quando cada lote ainda tem a quantidade comprada disponível.',
+                    'para devolvida e quando cada lote ainda tem a quantidade comprada disponível. '
+                    'As quantidades usam até 3 casas decimais e os valores e custos usam até 4 casas decimais.',
         request=None,
         responses={
             200: CompraFornecedorDetalhadaSerializer,
@@ -201,11 +215,15 @@ vinculo_fornecedor_schema = extend_schema_view(
         descricoes={
             'list': 'Sem `apagados`, retorna ativos e apagados. '
                     '`apagados=true`: só apagados; `apagados=false`: só ativos. '
-                    'Os filtros `materia_prima_id` e `apagados` podem ser combinados.',
+                    'Os filtros `materia_prima_id` e `apagados` podem ser combinados. '
+                    '`custo_unitario_fornecedor` usa até 4 casas decimais.',
+            'create': '`custo_unitario_fornecedor` aceita até 4 casas decimais e não pode ser negativo.',
             'update': 'Só vínculos ativos; vínculos apagados retornam 404 (restaure antes). '
-                      'A matéria-prima não pode ser alterada.',
+                      'A matéria-prima não pode ser alterada. '
+                      '`custo_unitario_fornecedor` aceita até 4 casas decimais e não pode ser negativo.',
             'partial_update': 'Só vínculos ativos; vínculos apagados retornam 404 (restaure antes). '
-                              'A matéria-prima não pode ser alterada.',
+                              'A matéria-prima não pode ser alterada. '
+                              '`custo_unitario_fornecedor` aceita até 4 casas decimais e não pode ser negativo.',
             'destroy': 'Exclusão lógica. Vínculo já apagado retorna 404.',
         },
     ),
@@ -232,9 +250,13 @@ ficha_tecnica_schema = extend_schema_view(
         retrieve_extra={400: ERRO_400_FILTRO},
         descricoes={
             'list': 'Sem `apagadas`, retorna ativas e apagadas. '
-                    '`apagadas=true`: só apagadas; `apagadas=false`: só ativas.',
-            'update': 'Só fichas ativas; fichas apagadas retornam 404 (restaure antes).',
-            'partial_update': 'Só fichas ativas; fichas apagadas retornam 404 (restaure antes).',
+                    '`apagadas=true`: só apagadas; `apagadas=false`: só ativas. '
+                    '`quantidade_necessaria` usa até 3 casas decimais (mínimo 0.001).',
+            'create': '`quantidade_necessaria` aceita até 3 casas decimais, com valor mínimo de 0.001.',
+            'update': 'Só fichas ativas; fichas apagadas retornam 404 (restaure antes). '
+                      '`quantidade_necessaria` aceita até 3 casas decimais (mínimo 0.001).',
+            'partial_update': 'Só fichas ativas; fichas apagadas retornam 404 (restaure antes). '
+                              '`quantidade_necessaria` aceita até 3 casas decimais (mínimo 0.001).',
             'destroy': 'Exclusão lógica. Ficha já apagada retorna 404.',
         },
     ),
@@ -264,7 +286,8 @@ lote_materia_prima_schema = extend_schema_view(
         descricoes={'list': 'Ordenados do mais recente para o mais antigo. '
                             'Os filtros `materia_prima_id`, `compra_fornecedor_item_id`, `status` e `sku` '
                             'podem ser combinados. Os lotes gerados por compra de fornecedor são criados '
-                            'automaticamente; esta listagem também mostra os lotes manuais.'},
+                            'automaticamente; esta listagem também mostra os lotes manuais. '
+                            '`quantidade_inicial` e `quantidade_atual` usam até 3 casas decimais.'},
         ops=('list', 'retrieve'),
     ),
     create=extend_schema(
@@ -274,7 +297,8 @@ lote_materia_prima_schema = extend_schema_view(
                     'movimentação de matéria-prima do tipo `ENTRADA` informando o lote. '
                     '`numero_lote_fabricante` vazio é gravado como "Não informado". '
                     '`data_validade` é opcional e não pode estar no passado. '
-                    'Lotes sem validade nunca vencem.',
+                    'Lotes sem validade nunca vencem. '
+                    'As quantidades do lote usam até 3 casas decimais.',
         responses={
             201: LoteMateriaPrimaSerializer,
             400: resposta_erro(
@@ -401,7 +425,8 @@ movimentacao_material_schema = extend_schema_view(
             ),
         },
         descricoes={'list': 'Ordenadas da mais recente para a mais antiga. '
-                            'Os filtros `materia_prima_id`, `lote_materia_prima_id` e `sku` podem ser combinados.'},
+                            'Os filtros `materia_prima_id`, `lote_materia_prima_id` e `sku` podem ser combinados. '
+                            '`quantidade_movimentada` usa até 3 casas decimais.'},
         ops=('list', 'retrieve'),
     ),
     create=extend_schema(
@@ -412,7 +437,8 @@ movimentacao_material_schema = extend_schema_view(
                     '`ENTRADA`. Todos os tipos aceitam fornecedor, com exceção das saídas por produção. '
                     'A saída por devolução é gerada automaticamente pela devolução da compra. '
                     'Entrada e saída por produção não são aceitas em lote vencido. '
-                    'O estoque da matéria-prima soma apenas os lotes ativos.',
+                    'O estoque da matéria-prima soma apenas os lotes ativos. '
+                    '`quantidade_movimentada` aceita até 3 casas decimais e deve ser maior que 0.',
         responses={
             201: MovimentacaoMaterialSerializer,
             400: resposta_erro(
