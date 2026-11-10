@@ -1,8 +1,9 @@
 from django_filters import rest_framework as df
+from rest_framework.exceptions import ValidationError
 
 from core.filters import ApagadasFilter
 from .models import FichaTecnica, MovimentacaoEstoque, MovimentacaoMaterial, VinculoFornecedor, MateriaPrima, \
-    Fornecedor, CompraFornecedor, LoteMateriaPrima, LoteProdutoVariacao, StatusLote
+    Fornecedor, CompraFornecedor, LoteMateriaPrima, LoteProdutoVariacao, StatusLote, StatusCompraFornecedor
 
 
 class MateriaPrimaFilter(df.FilterSet):
@@ -34,10 +35,49 @@ class CompraFornecedorFilter(df.FilterSet):
         field_name="fornecedor_id",
         help_text="Filtra por fornecedor (valor não numérico retorna 400).",
     )
+    status = df.ChoiceFilter(
+        choices=StatusCompraFornecedor.choices,
+        help_text="Filtra pelo status da compra (valor fora das opções retorna 400).",
+    )
+    realizada_de = df.DateFilter(
+        field_name="compra_realizada_em",
+        lookup_expr="date__gte",
+        help_text="Compras realizadas a partir desta data, inclusive (AAAA-MM-DD).",
+    )
+    realizada_ate = df.DateFilter(
+        field_name="compra_realizada_em",
+        lookup_expr="date__lte",
+        help_text="Compras realizadas até esta data, inclusive (AAAA-MM-DD).",
+    )
+
+    ordering = df.OrderingFilter(
+        fields=(
+            ("compra_realizada_em", "compra_realizada_em"),
+            ("valor_total", "valor_total"),
+            ("id", "id"),
+        ),
+        help_text=(
+            "Campos de ordenação: compra_realizada_em, valor_total, id. "
+            "Use '-' para ordem decrescente (ex.: ?ordering=-compra_realizada_em). "
+            "Separe por vírgula para ordenar por mais de um campo "
+            "(ex.: ?ordering=-valor_total,compra_realizada_em)."
+        ),
+    )
 
     class Meta:
         model = CompraFornecedor
-        fields = ["fornecedor_id"]
+        fields = ["fornecedor_id", "status", "realizada_de", "realizada_ate"]
+
+    def filter_queryset(self, queryset):
+        dados = self.form.cleaned_data
+        realizada_de, realizada_ate = dados.get("realizada_de"), dados.get("realizada_ate")
+
+        if realizada_de and realizada_ate and realizada_de > realizada_ate:
+            raise ValidationError(
+                {"realizada_de": "Deve ser anterior ou igual a 'realizada_ate'."}
+            )
+
+        return super().filter_queryset(queryset)
 
 
 class VinculoFornecedorFilter(df.FilterSet):
