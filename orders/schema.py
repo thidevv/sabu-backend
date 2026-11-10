@@ -98,15 +98,28 @@ pedido_schema = extend_schema_view(
             401: ERRO_401, 403: ERRO_403, 404: ERRO_404,
         },
     ),
-    concluir=_acao('Concluir pedido', 'Muda o status para concluído. O estoque já foi baixado na criação.'),
-    cancelar=_acao('Cancelar pedido (COM devolução ao estoque automaticamente)',
-                   'Cancela o pedido e devolve cada item aos mesmos lotes de onde saiu, com um estorno '
-                   'de venda por lote. Movimenta o estoque. Se um lote já venceu, a quantidade volta '
-                   'para ele, mas não é somada ao estoque da variação.'),
-    estornar_com_devolucao=_acao('Estornar pedido COM devolução ao estoque',
-                                 'Muda o status para estornado e devolve cada item aos mesmos lotes de onde saiu, '
-                                 'com um estorno de venda por lote. Movimenta o estoque. Se um lote já venceu, '
-                                 'a quantidade volta para ele, mas não é somada ao estoque da variação.'),
-    estornar_sem_devolucao=_acao('Estornar pedido SEM devolução ao estoque','Muda o status para estornado. Não movimenta o estoque.'),
-
+    concluir=_acao(
+        'Concluir pedido',
+        'Muda o status para concluído. O estoque já foi baixado na criação. '
+        'Transições permitidas a partir de PENDENTE: CONCLUIDO e CANCELADO.'
+    ),
+    cancelar=_acao(
+        'Cancelar pedido (COM devolução ao estoque automaticamente)',
+        'Cancela o pedido e devolve cada item aos mesmos lotes de onde saiu, com um estorno '
+        'de venda por lote. Movimenta o estoque. Se um lote já venceu, a quantidade volta '
+        'para ele, mas não é somada ao estoque da variação. '
+        'Transições permitidas a partir de PENDENTE: CONCLUIDO e CANCELADO.'
+    ),
+    estornar_com_devolucao=_acao(
+        'Estornar pedido COM devolução ao estoque',
+        'Muda o status para estornado e devolve cada item aos mesmos lotes de onde saiu, '
+        'com um estorno de venda por lote. Movimenta o estoque. Se um lote já venceu, '
+        'a quantidade volta para ele, mas não é somada ao estoque da variação. '
+        'Transições permitidas a partir de CONCLUIDO: ESTORNADO_COM_DEVOLUCAO e ESTORNADO_SEM_DEVOLUCAO.'
+    ),
+    estornar_sem_devolucao=_acao(
+        'Estornar pedido SEM devolução ao estoque',
+        'Muda o status para estornado. Não movimenta o estoque. '
+        'Transições permitidas a partir de CONCLUIDO: ESTORNADO_COM_DEVOLUCAO e ESTORNADO_SEM_DEVOLUCAO.'
+    ),
 )
