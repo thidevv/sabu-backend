@@ -411,7 +411,7 @@ movimentacao_estoque_schema = extend_schema_view(
                     '`ENTRADA`. Venda/estorno exigem pedido e são gerados automaticamente pelos pedidos; '
                     'os demais tipos não aceitam. Entrada, saída por venda e saída por produção não são '
                     'aceitas em lote vencido. O estoque da variação soma apenas os lotes ativos.'
-                    'Tipos manuais permitidos: ENTRADA, AJUSTE_OU_PERDA, ESTORNO_VENDA (caso queira colocar uma observação manualmente, sem utilizar a automática do sistema)',
+                    'Tipos manuais permitidos: ENTRADA, AJUSTE_OU_PERDA',
         responses={
             201: MovimentacaoEstoqueSerializer,
             400: resposta_erro(
