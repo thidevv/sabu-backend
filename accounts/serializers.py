@@ -26,7 +26,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 
 class UsuarioCadastroSerializer(serializers.ModelSerializer, ValidaNomeCompletoMixin, ValidaCpfCnpjMixin):
-    senha = serializers.CharField(
+    password = serializers.CharField(
         write_only=True,
         required=True,
         style={'input_type': 'password'}
@@ -37,12 +37,12 @@ class UsuarioCadastroSerializer(serializers.ModelSerializer, ValidaNomeCompletoM
         fields = [
             'nome',
             'email',
-            'senha',
+            'password',
             'telefone',
             'cpf_cnpj',
         ]
 
-    def validate_senha(self, value):
+    def validate_password(self, value):
         errors = []
 
         if len(value) < 8:
@@ -63,7 +63,7 @@ class UsuarioCadastroSerializer(serializers.ModelSerializer, ValidaNomeCompletoM
         return value
 
     def create(self, validated_data):
-        senha = validated_data.pop('senha')
+        senha = validated_data.pop('password')
 
         usuario = Usuario.objects.create_user(
             password=senha,
