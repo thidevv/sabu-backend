@@ -7,7 +7,7 @@ from rest_framework import serializers
 from .models import (
     MateriaPrima, FichaTecnica, MovimentacaoEstoque, TIPOS_COM_PEDIDO, MovimentacaoMaterial, Fornecedor,
     VinculoFornecedor, CompraFornecedor, CompraFornecedorItem, LoteMateriaPrima, LoteProdutoVariacao,
-    TIPOS_MATERIAL_AUTOMATICOS_COM_FORNECEDOR, CATEGORIA_MATERIA_PRIMA_CHOICES,
+    TIPOS_MATERIAL_AUTOMATICOS_COM_FORNECEDOR, CATEGORIA_MATERIA_PRIMA_CHOICES, TIPOS_MATERIAL_AUTOMATICOS,
 )
 from .services import (
     registrar_movimentacao_estoque, registrar_movimentacao_material, criar_compra_fornecedor_completa,
@@ -429,8 +429,12 @@ class MovimentacaoMaterialSerializer(serializers.ModelSerializer):
         }
 
     def validate_tipo(self, value):
+        if value in TIPOS_MATERIAL_AUTOMATICOS:
+            raise serializers.ValidationError('Este tipo é gerado automaticamente na operação de fabricação de um produto.')
+
         if value in TIPOS_MATERIAL_AUTOMATICOS_COM_FORNECEDOR:
             raise serializers.ValidationError('Este tipo é gerado automaticamente pela compra de um fornecedor.')
+
         return value
 
     def create(self, validated_data):

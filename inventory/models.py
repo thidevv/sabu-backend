@@ -310,6 +310,7 @@ class TipoMovimentacaoMaterial(models.TextChoices):
     AJUSTE_OU_PERDA = 'AJUSTE_OU_PERDA', 'Ajuste / Perda'
     SAIDA_DEVOLUCAO = 'SAIDA_DEVOLUCAO', 'Saída por Devolução'
 
+TIPOS_MATERIAL_AUTOMATICOS = {TipoMovimentacaoMaterial.SAIDA_PRODUCAO}
 TIPOS_MATERIAL_AUTOMATICOS_COM_FORNECEDOR = {TipoMovimentacaoMaterial.SAIDA_DEVOLUCAO}
 
 TIPOS_MATERIAL_QUE_AUMENTAM = {TipoMovimentacaoMaterial.ENTRADA}
