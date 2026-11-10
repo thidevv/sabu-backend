@@ -1,4 +1,4 @@
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 
 from core.schema import (
     ERRO_401, ERRO_403, ERRO_404, EX_VALIDACAO,
@@ -13,6 +13,19 @@ cliente_schema = extend_schema_view(**crud_schema(
     TAG_CLIENTES, 'cliente', 'clientes',
     leitura=ClienteSerializer,
 ))
+
+PARAM_ORDERING_PEDIDO = OpenApiParameter(
+    name="ordering",
+    type=str,
+    location=OpenApiParameter.QUERY,
+    required=False,
+    description=(
+        "Campos de ordenação: criado_em, atualizado_em, valor_total, id. "
+        "Use '-' para ordem decrescente (ex.: ?ordering=-criado_em). "
+        "Separe por vírgula para ordenar por mais de um campo "
+        "(ex.: ?ordering=-valor_total,criado_em)."
+    ),
+)
 
 _EX_TRANSICAO = exemplo_erro(
     'transicao_status_invalida', 'Não é possível mudar o pedido de CANCELADO para CONCLUIDO.',
@@ -60,6 +73,7 @@ pedido_schema = extend_schema_view(
     list=extend_schema(
         tags=[TAG_PEDIDOS], summary='Listar pedidos',
         description='Ordenados do mais recente para o mais antigo.',
+        parameters=[PARAM_ORDERING_PEDIDO],
         responses={
             200: PedidoDetalhadoSerializer,
             400: resposta_erro('Parâmetro de filtro inválido.', _EX_CLIENTE_ID_INVALIDO),
@@ -77,7 +91,8 @@ pedido_schema = extend_schema_view(
                     'em cada lote. Lotes vencidos ou esgotados não são usados, então o saldo considerado '
                     'é o dos lotes ativos. Tudo roda em uma transação: '
                     'se algum item não tiver saldo, nada é gravado. '
-                    'Não pode haver variações repetidas entre os itens.',
+                    'Não pode haver variações repetidas entre os itens. '
+                    'Status inicial: PENDENTE',
         responses={
             201: PedidoDetalhadoSerializer,
             400: resposta_erro('Dados inválidos.', EX_VALIDACAO,
