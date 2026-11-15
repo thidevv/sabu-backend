@@ -4,6 +4,7 @@ asgiref==3.12.1
 attrs==26.1.0
 cffi==2.1.1
 Django==6.1.1
+django-cors-headers==4.9.0
 django-environ==0.14.0
 django-filter==26.2
 django-stubs==6.1.2
@@ -21,6 +22,7 @@ pycparser==3.12
 PyJWT==2.15.1
 PyYAML==6.0.3
 referencing==0.37.0
+regex==2026.11.9
 rpds-py==2026.6.3
 sqlparse==0.6.0
 types-PyYAML==6.0.12.20260906
