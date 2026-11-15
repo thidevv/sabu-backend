@@ -85,6 +85,12 @@ class VinculoFornecedorFilter(df.FilterSet):
         field_name="materia_prima_id",
         help_text="Filtra por matéria-prima.",
     )
+
+    fornecedor_id = df.NumberFilter(
+        field_name="fornecedor_id",
+        help_text="Filtra por fornecedor."
+    )
+
     apagados = ApagadasFilter(campo="apagado_em")
 
     class Meta:
