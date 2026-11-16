@@ -7,7 +7,8 @@ from core.schema import (
 from inventory.serializers import FabricarVariacaoSerializer, LoteProdutoVariacaoSerializer
 from .serializers import (
     CategoriaSerializer, ProdutoDetalhadoSerializer, ProdutoSerializer,
-    ProdutoVariacaoSerializer, ProdutoVariacaoUpdateSerializer, TipoPeleSerializer,
+    ProdutoVariacaoSerializer, ProdutoVariacaoUpdateSerializer, TipoPeleSerializer, ProdutoImagemSerializer,
+    ProdutoVariacaoImagemSerializer,
 )
 
 TAG = 'Catálogo'
@@ -18,19 +19,63 @@ categoria_schema = extend_schema_view(**crud_schema(
 tipo_pele_schema = extend_schema_view(**crud_schema(
     TAG, 'tipo de pele', 'tipos de pele', leitura=TipoPeleSerializer, leitura_publica=True))
 
-produto_schema = extend_schema_view(**crud_schema(
-    TAG, 'produto', 'produtos',
-    leitura=ProdutoDetalhadoSerializer, escrita=ProdutoSerializer,
-    leitura_publica=True,
-    list_extra={
-        400: resposta_erro(
-            'Filtro inválido.',
-            exemplo_erro('validation_error', 'Dados inválidos.',
-                         {'categoria_id': ['Informe um número.']}),
-        ),
-    },
-    descricoes={'list': 'Não-admin vê apenas produtos ativos.'},
-))
+produto_schema = extend_schema_view(
+    **crud_schema(
+        TAG, 'produto', 'produtos',
+        leitura=ProdutoDetalhadoSerializer, escrita=ProdutoSerializer,
+        leitura_publica=True,
+        list_extra={
+            400: resposta_erro(
+                'Filtro inválido.',
+                exemplo_erro('validation_error', 'Dados inválidos.',
+                             {'categoria_id': ['Informe um número.']}),
+            ),
+        },
+        descricoes={
+            'list': 'Não-admin vê apenas produtos ativos. '
+                    '`image` é a URL da imagem do produto, ou `null` se não houver.',
+            'create': 'A imagem não é enviada aqui: use `PUT /api/v1/catalog/produtos/{id}/imagem/` depois de criar o produto.',
+            'update': 'A imagem não é alterada aqui: use `PUT /api/v1/catalog/produtos/{id}/imagem/`.',
+        },
+    ),
+    imagem=extend_schema(
+        tags=[TAG],
+        summary='Enviar ou trocar imagem do produto',
+        description='Envia a imagem do produto (`multipart/form-data`, campo `imagem`). '
+                    'Se já houver uma imagem, ela é substituída e o arquivo antigo é apagado. '
+                    'Formatos aceitos: JPEG, PNG e WebP, com no máximo 5 MB. '
+                    'Retorna o produto atualizado, com a URL nova em `imagem`.',
+        request={'multipart/form-data': ProdutoImagemSerializer},
+        responses={
+            200: ProdutoDetalhadoSerializer,
+            400: resposta_erro(
+                'Arquivo inválido.',
+                EX_VALIDACAO,
+                exemplo_erro(
+                    'validation_error', 'Dados inválidos.',
+                    {'image': ['A imagem deve ter no máximo 5 MB.']},
+                    nome='imagem_muito_grande',
+                ),
+                exemplo_erro(
+                    'validation_error', 'Dados inválidos.',
+                    {'image': ['Formato não permitido. Use JPEG, PNG ou WebP.']},
+                    nome='formato_invalido',
+                ),
+            ),
+            401: ERRO_401,
+            403: ERRO_403,
+            404: ERRO_404,
+        },
+    ),
+    remover_imagem=extend_schema(
+        tags=[TAG],
+        summary='Remover imagem do produto',
+        description='Remove a imagem do produto e apaga o arquivo. '
+                    'Se o produto não tiver imagem, a operação é idempotente e também retorna 204.',
+        request=None,
+        responses={204: None, 401: ERRO_401, 403: ERRO_403, 404: ERRO_404},
+    ),
+)
 
 variacao_schema = extend_schema_view(
     **crud_schema(
@@ -109,5 +154,42 @@ variacao_schema = extend_schema_view(
                 ),
             ),
         },
+    ),
+    imagem=extend_schema(
+        tags=[TAG],
+        summary='Enviar ou trocar imagem da variação',
+        description='Envia a imagem da variação (`multipart/form-data`, campo `imagem`). '
+                    'Se já houver uma imagem, ela é substituída e o arquivo antigo é apagado. '
+                    'Formatos aceitos: JPEG, PNG e WebP, com no máximo 5 MB. '
+                    'Retorna a variação atualizada, com a URL nova em `imagem`.',
+        request={'multipart/form-data': ProdutoVariacaoImagemSerializer},
+        responses={
+            200: ProdutoVariacaoSerializer,
+            400: resposta_erro(
+                'Arquivo inválido.',
+                EX_VALIDACAO,
+                exemplo_erro(
+                    'validation_error', 'Dados inválidos.',
+                    {'image': ['A imagem deve ter no máximo 5 MB.']},
+                    nome='imagem_muito_grande',
+                ),
+                exemplo_erro(
+                    'validation_error', 'Dados inválidos.',
+                    {'image': ['Formato não permitido. Use JPEG, PNG ou WebP.']},
+                    nome='formato_invalido',
+                ),
+            ),
+            401: ERRO_401,
+            403: ERRO_403,
+            404: ERRO_404,
+        },
+    ),
+    remover_imagem=extend_schema(
+        tags=[TAG],
+        summary='Remover imagem da variação',
+        description='Remove a imagem da variação e apaga o arquivo. '
+                    'Se a variação não tiver imagem, a operação é idempotente e também retorna 204.',
+        request=None,
+        responses={204: None, 401: ERRO_401, 403: ERRO_403, 404: ERRO_404},
     ),
 )
