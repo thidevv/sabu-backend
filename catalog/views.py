@@ -2,6 +2,7 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 
 from accounts.mixins import PublicReadAdminWriteViewSetMixin
@@ -20,7 +21,7 @@ from .serializers import (
     ProdutoDetalhadoSerializer,
     ProdutoVariacaoSerializer,
     ProdutoVariacaoUpdateSerializer,
-    TipoPeleSerializer,
+    TipoPeleSerializer, ProdutoImagemSerializer, ProdutoVariacaoImagemSerializer,
 )
 
 
@@ -55,6 +56,19 @@ class ProdutoViewSet(PublicReadAdminWriteViewSetMixin, viewsets.ModelViewSet):
         if not usuario_e_admin(self.request.user):
             qs = qs.filter(esta_ativo=True)
         return qs
+
+    @action(detail=True, methods=["put", "delete"], parser_classes=[MultiPartParser])
+    def imagem(self, request, pk=None):
+        produto = self.get_object()
+
+        if request.method == "DELETE":
+            produto.imagem.delete(save=True)
+            return Response(status=204)
+
+        serializer = ProdutoImagemSerializer(produto, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(ProdutoSerializer(produto, context={"request": request}).data)
 
 
 @variacao_schema
@@ -116,3 +130,16 @@ class ProdutoVariacaoViewSet(PublicReadAdminWriteViewSetMixin, FiltrosSomenteNaL
         )
 
         return Response(LoteProdutoVariacaoSerializer(lote).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["put", "delete"], parser_classes=[MultiPartParser])
+    def imagem(self, request, pk=None):
+        variacao = self.get_object()
+
+        if request.method == "DELETE":
+            variacao.imagem.delete(save=True)
+            return Response(status=204)
+
+        serializer = ProdutoVariacaoImagemSerializer(variacao, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(ProdutoVariacaoSerializer(variacao, context={"request": request}).data)
