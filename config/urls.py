@@ -31,6 +31,7 @@ urlpatterns = [
     path('api/v1/catalog/', include('catalog.urls')),
     path('api/v1/inventory/', include('inventory.urls')),
     path('api/v1/orders/', include('orders.urls')),
+    path('api/v1/recommendations/', include('recommendations.urls')),
     # Gera o arquivo de schema (JSON / YAML)
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     # Interface do Swagger UI
