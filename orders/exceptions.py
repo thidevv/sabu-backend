@@ -15,3 +15,7 @@ class TransicaoInvalida(ErroDeDominio):
             f'Não é possível mudar o pedido de {atual} para {novo}.',
             atual=atual, novo=novo,
         )
+
+class DescontoInvalido(ErroDeDominio):
+    codigo = 'desconto_invalido'
+    mensagem_padrao = 'Desconto inválido.'
