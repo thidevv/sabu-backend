@@ -1,4 +1,4 @@
-from rest_framework import viewsets, mixins
+from rest_framework import viewsets, mixins, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -19,6 +19,8 @@ class ClienteViewSet(AdminOnlyViewSetMixin, viewsets.ModelViewSet):
     queryset = Cliente.objects.order_by('nome')
     serializer_class = ClienteSerializer
     filterset_class = ClienteFilter
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['nome', 'cpf_cnpj']
 
 
 @pedido_schema
