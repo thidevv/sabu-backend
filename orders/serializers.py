@@ -17,6 +17,8 @@ class ClienteSerializer(serializers.ModelSerializer, ValidaNomeCompletoMixin, Va
 
 
 class PedidoItemSerializer(serializers.ModelSerializer):
+    promocao = serializers.SerializerMethodField()
+
     class Meta:
         model = PedidoItem
         fields = [
@@ -24,11 +26,15 @@ class PedidoItemSerializer(serializers.ModelSerializer):
             'variacao',
             'quantidade_item',
             'valor_unitario',
+            'promocao',
         ]
         read_only_fields = ['valor_unitario']
         extra_kwargs = {
             'quantidade_item': {'min_value': 1, 'max_value': 1000},
         }
+
+    def get_promocao(self, obj):
+        return obj.variacao.preco_promo is not None
 
 
 class PedidoDetalhadoSerializer(ValidaEnderecoMixin, serializers.ModelSerializer):
