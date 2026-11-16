@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from rest_framework import serializers
-from .models import Categoria, Produto, ProdutoVariacao, TipoPele
+from .models import Categoria, Ingrediente, Produto, ProdutoVariacao, TipoPele
 from core.constants import TAMANHO_MAXIMO_IMAGEM, FORMATOS_PERMITIDOS_IMAGEM
 
 
@@ -17,6 +17,19 @@ class TipoPeleSerializer(serializers.ModelSerializer):
         model = TipoPele
         fields = ['id', 'nome']
         read_only_fields = ['id']
+
+
+class IngredienteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Ingrediente
+        fields = ['id', 'nome']
+        read_only_fields = ['id']
+
+    # Normaliza antes do UniqueValidator, para "Mel" e "mel" serem o mesmo ingrediente
+    def to_internal_value(self, data):
+        if isinstance(data, dict) and isinstance(data.get('nome'), str):
+            data = {**data, 'nome': data['nome'].strip().lower()}
+        return super().to_internal_value(data)
 
 
 class ProdutoVariacaoSerializer(serializers.ModelSerializer):
@@ -101,6 +114,12 @@ class ProdutoSerializer(serializers.ModelSerializer):
         required=False
     )
 
+    ingredientes = serializers.PrimaryKeyRelatedField(
+        queryset=Ingrediente.objects.all(),
+        many=True,
+        required=False
+    )
+
     class Meta:
         model = Produto
         fields = [
@@ -112,6 +131,12 @@ class ProdutoSerializer(serializers.ModelSerializer):
             'criado_em',
             'tipo_pele',
             'categorias',
+            'tipo_pele_indicado',
+            'base',
+            'essencia',
+            'sem_fragrancia',
+            'vegano',
+            'ingredientes',
         ]
         read_only_fields = ['id', 'imagem', 'criado_em']
 
@@ -136,6 +161,7 @@ class ProdutoDetalhadoSerializer(serializers.ModelSerializer):
     categorias = CategoriaSerializer(many=True, read_only=True)
     variacoes = ProdutoVariacaoSerializer(many=True, read_only=True)
     tipo_pele = TipoPeleSerializer(many=True, read_only=True)
+    ingredientes = IngredienteSerializer(many=True, read_only=True)
 
     class Meta:
         model = Produto
@@ -148,6 +174,12 @@ class ProdutoDetalhadoSerializer(serializers.ModelSerializer):
             'criado_em',
             'tipo_pele',
             'categorias',
+            'tipo_pele_indicado',
+            'base',
+            'essencia',
+            'sem_fragrancia',
+            'vegano',
+            'ingredientes',
             'variacoes',
         ]
         read_only_fields = ['id', 'imagem', 'criado_em']

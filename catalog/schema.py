@@ -6,7 +6,7 @@ from core.schema import (
 )
 from inventory.serializers import FabricarVariacaoSerializer, LoteProdutoVariacaoSerializer
 from .serializers import (
-    CategoriaSerializer, ProdutoDetalhadoSerializer, ProdutoSerializer,
+    CategoriaSerializer, IngredienteSerializer, ProdutoDetalhadoSerializer, ProdutoSerializer,
     ProdutoVariacaoSerializer, ProdutoVariacaoUpdateSerializer, TipoPeleSerializer, ProdutoImagemSerializer,
     ProdutoVariacaoImagemSerializer,
 )
@@ -18,6 +18,14 @@ categoria_schema = extend_schema_view(**crud_schema(
 
 tipo_pele_schema = extend_schema_view(**crud_schema(
     TAG, 'tipo de pele', 'tipos de pele', leitura=TipoPeleSerializer, leitura_publica=True))
+
+ingrediente_schema = extend_schema_view(**crud_schema(
+    TAG, 'ingrediente', 'ingredientes', leitura=IngredienteSerializer, leitura_publica=True,
+    descricoes={
+        'create': 'O nome é salvo em minúsculas e sem espaços nas pontas.',
+        'destroy': 'Ingrediente vinculado a algum produto não pode ser apagado (409).',
+    },
+))
 
 produto_schema = extend_schema_view(
     **crud_schema(

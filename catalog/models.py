@@ -21,6 +21,36 @@ class TipoPele(models.Model):
     def __str__(self):
         return self.nome
 
+class Ingrediente(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    nome = models.CharField(max_length=100, unique=True)
+
+    class Meta:
+        db_table = 'ingrediente'
+
+    def __str__(self):
+        return self.nome
+
+    # Nome sempre minúsculo e sem espaços nas pontas: a regra de alergia compara por item exato
+    def clean(self):
+        self.nome = (self.nome or '').strip().lower()
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+
+class TipoPeleIndicado(models.TextChoices):
+    SECA = 'SECA', 'Seca'
+    OLEOSA = 'OLEOSA', 'Oleosa'
+    MISTA = 'MISTA', 'Mista'
+    NORMAL = 'NORMAL', 'Normal'
+    TODOS = 'TODOS', 'Todos'
+
+class BaseProduto(models.TextChoices):
+    PROCESSO_A_FRIO = 'PROCESSO_A_FRIO', 'Processo a frio'
+    GLICERINA = 'GLICERINA', 'Glicerina'
+    BASE_VEGETAL = 'BASE_VEGETAL', 'Base vegetal'
+
 class Produto(models.Model):
     id = models.BigAutoField(primary_key=True)
     nome = models.CharField(max_length=100)
@@ -30,6 +60,14 @@ class Produto(models.Model):
     criado_em = models.DateTimeField(auto_now_add=True)
     tipo_pele = models.ManyToManyField(TipoPele, through='ProdutoTipoPele', related_name='produtos')
     categorias = models.ManyToManyField(Categoria, through='ProdutoCategoria', related_name='produtos')
+    tipo_pele_indicado = models.CharField(
+        max_length=20, choices=TipoPeleIndicado.choices, default=TipoPeleIndicado.TODOS)
+    base = models.CharField(max_length=30, choices=BaseProduto.choices, blank=True)
+    essencia = models.CharField(max_length=50, blank=True)
+    sem_fragrancia = models.BooleanField(default=False)
+    vegano = models.BooleanField(default=False)
+    ingredientes = models.ManyToManyField(
+        Ingrediente, through='ProdutoIngrediente', related_name='produtos', blank=True)
 
     class Meta:
         db_table = 'produto'
@@ -63,6 +101,21 @@ class ProdutoTipoPele(models.Model):
             models.UniqueConstraint(
                 fields=['produto', 'tipo_pele'],
                 name='uq_produto_tipo_pele',
+            )
+        ]
+
+class ProdutoIngrediente(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    produto = models.ForeignKey(Produto, on_delete=models.CASCADE)
+    # PROTECT: apagar um ingrediente em uso tiraria a informação de alergia dos produtos
+    ingrediente = models.ForeignKey(Ingrediente, on_delete=models.PROTECT)
+
+    class Meta:
+        db_table = 'produto_ingrediente'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['produto', 'ingrediente'],
+                name='uq_produto_ingrediente',
             )
         ]
 
