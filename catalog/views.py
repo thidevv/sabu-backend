@@ -1,6 +1,6 @@
 from django.db import transaction
 from django.utils import timezone
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
@@ -29,12 +29,16 @@ from .serializers import (
 class CategoriaViewSet(PublicReadAdminWriteViewSetMixin, viewsets.ModelViewSet):
     queryset = Categoria.objects.order_by('nome')
     serializer_class = CategoriaSerializer
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['nome']
 
 
 @tipo_pele_schema
 class TipoPeleViewSet(PublicReadAdminWriteViewSetMixin, viewsets.ModelViewSet):
     queryset = TipoPele.objects.order_by('nome')
     serializer_class = TipoPeleSerializer
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['nome']
 
 
 @produto_schema
@@ -45,6 +49,8 @@ class ProdutoViewSet(PublicReadAdminWriteViewSetMixin, viewsets.ModelViewSet):
         .order_by('nome')
     )
     filterset_class = ProdutoFilter
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['nome']
 
     def get_serializer_class(self):
         if self.action in ['list', 'retrieve']:
@@ -76,6 +82,8 @@ class ProdutoVariacaoViewSet(PublicReadAdminWriteViewSetMixin, FiltrosSomenteNaL
                            viewsets.ModelViewSet):
     queryset = ProdutoVariacao.objects.select_related('produto')
     filterset_class = ProdutoVariacaoFilter
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['nome', 'sku']
 
     def get_serializer_class(self):
         if self.action in ['list', 'retrieve']:
