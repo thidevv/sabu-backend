@@ -1,4 +1,5 @@
 from django.db import models
+from core.utils import CaminhoImagem
 
 class Categoria(models.Model):
     id = models.BigAutoField(primary_key=True)
@@ -20,11 +21,11 @@ class TipoPele(models.Model):
     def __str__(self):
         return self.nome
 
-
 class Produto(models.Model):
     id = models.BigAutoField(primary_key=True)
     nome = models.CharField(max_length=100)
     descricao = models.TextField(blank=True, null=True)
+    imagem = models.ImageField(upload_to=CaminhoImagem('produtos'), null=True, blank=True)
     esta_ativo = models.BooleanField(default=True)
     criado_em = models.DateTimeField(auto_now_add=True)
     tipo_pele = models.ManyToManyField(TipoPele, through='ProdutoTipoPele', related_name='produtos')
@@ -65,12 +66,12 @@ class ProdutoTipoPele(models.Model):
             )
         ]
 
-
 class ProdutoVariacao(models.Model):
     id = models.BigAutoField(primary_key=True)
     produto = models.ForeignKey(Produto, on_delete=models.PROTECT, related_name='variacoes')
     sku = models.CharField(max_length=50, unique=True)
     nome = models.CharField(max_length=50)
+    imagem = models.ImageField(upload_to=CaminhoImagem('variacoes'), null=True, blank=True)
     preco = models.DecimalField(max_digits=10, decimal_places=2)
     preco_promo = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     inicio_promo = models.DateTimeField(blank=True, null=True)
