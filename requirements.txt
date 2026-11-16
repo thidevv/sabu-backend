@@ -29,3 +29,7 @@ types-PyYAML==6.0.12.20260906
 typing_extensions==4.16.0
 uritemplate==4.2.0
 validate-docbr==2.0.0
+scikit-learn==1.6.1
+pandas==2.2.3
+numpy==2.4.6
+joblib==1.6.0

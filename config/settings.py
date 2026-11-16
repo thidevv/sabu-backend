@@ -101,6 +101,7 @@ INSTALLED_APPS = [
     'catalog',
     'orders',
     'inventory',
+    'recommendations',
     'django_filters',
     'corsheaders',
     "django_cleanup.apps.CleanupConfig",
