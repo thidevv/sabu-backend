@@ -2,6 +2,7 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import viewsets, mixins, status
 from rest_framework.decorators import action
+from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 
 from accounts.mixins import AdminOnlyViewSetMixin
@@ -22,7 +23,7 @@ from .serializers import (
     MovimentacaoEstoqueSerializer, MovimentacaoMaterialSerializer, FornecedorSerializer,
     VinculoFornecedorUpdateSerializer, VinculoFornecedorDetalhadoSerializer, VinculoFornecedorSerializer,
     CompraFornecedorSerializer, CompraFornecedorDetalhadaSerializer, CompraFornecedorUpdateSerializer,
-    LoteMateriaPrimaSerializer, LoteProdutoVariacaoSerializer,
+    LoteMateriaPrimaSerializer, LoteProdutoVariacaoSerializer, MateriaPrimaImagemSerializer,
 )
 from .services import devolver_compra_fornecedor
 
@@ -55,6 +56,19 @@ class MateriaPrimaViewSet(AdminOnlyViewSetMixin, viewsets.ModelViewSet):
             materia_prima.save(update_fields=['apagada_em'])
 
         return Response(MateriaPrimaSerializer(materia_prima).data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["put", "delete"], parser_classes=[MultiPartParser])
+    def imagem(self, request, pk=None):
+        materia_prima = self.get_object()
+
+        if request.method == "DELETE":
+            materia_prima.imagem.delete(save=True)
+            return Response(status=204)
+
+        serializer = MateriaPrimaImagemSerializer(materia_prima, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(MateriaPrimaSerializer(materia_prima, context={"request": request}).data)
 
 @fornecedor_schema
 class FornecedorViewSet(AdminOnlyViewSetMixin, viewsets.ModelViewSet):
