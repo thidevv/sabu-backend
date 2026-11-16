@@ -104,6 +104,7 @@ INSTALLED_APPS = [
     'django_filters',
     'corsheaders',
     "django_cleanup.apps.CleanupConfig",
+    'intelligence',
 ]
 
 MIDDLEWARE = [
