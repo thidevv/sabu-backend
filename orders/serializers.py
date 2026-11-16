@@ -1,11 +1,13 @@
 import re
 from collections import Counter
+from decimal import Decimal
 
 from rest_framework import serializers
 
 from core.mixins import ValidaEnderecoMixin, ValidaNomeCompletoMixin, ValidaCpfCnpjMixin
 from orders.models import Pedido, PedidoItem, Cliente, StatusPedido
-from orders.services import criar_pedido_completo
+from orders.services import criar_pedido_completo, calcular_subtotal, calcular_valor_desconto
+from orders.exceptions import DescontoInvalido
 
 STATUS_EDITAVEIS = {StatusPedido.PENDENTE}
 
@@ -18,6 +20,7 @@ class ClienteSerializer(serializers.ModelSerializer, ValidaNomeCompletoMixin, Va
 
 class PedidoItemSerializer(serializers.ModelSerializer):
     promocao = serializers.SerializerMethodField()
+    valor_final = serializers.SerializerMethodField()
 
     class Meta:
         model = PedidoItem
@@ -26,15 +29,20 @@ class PedidoItemSerializer(serializers.ModelSerializer):
             'variacao',
             'quantidade_item',
             'valor_unitario',
+            'valor_desconto',
+            'valor_final',
             'promocao',
         ]
-        read_only_fields = ['valor_unitario']
+        read_only_fields = ['valor_unitario', 'valor_desconto']
         extra_kwargs = {
             'quantidade_item': {'min_value': 1, 'max_value': 1000},
         }
 
     def get_promocao(self, obj):
         return obj.variacao.preco_promo is not None
+
+    def get_valor_final(self, obj):
+        return obj.valor_final
 
 
 class PedidoDetalhadoSerializer(ValidaEnderecoMixin, serializers.ModelSerializer):
@@ -53,13 +61,24 @@ class PedidoDetalhadoSerializer(ValidaEnderecoMixin, serializers.ModelSerializer
             'cidade',
             'sigla_estado',
             'status',
+            'valor_subtotal',
+            'tipo_desconto',
+            'desconto',
+            'valor_desconto',
             'valor_total',
             'observacao',
             'criado_em',
             'atualizado_em',
             'itens',
         ]
-        read_only_fields = ['status', 'valor_total', 'criado_em', 'atualizado_em']
+        read_only_fields = [
+            'status',
+            'valor_subtotal',
+            'valor_desconto',
+            'valor_total',
+            'criado_em',
+            'atualizado_em',
+        ]
 
 
 class PedidoSerializer(PedidoDetalhadoSerializer):
@@ -88,6 +107,30 @@ class PedidoSerializer(PedidoDetalhadoSerializer):
         limpo = value.replace('-', '')
 
         return limpo
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        tipo = attrs.get('tipo_desconto') or ''
+        desconto = attrs.get('desconto') or Decimal('0')
+
+        if desconto > 0 and not tipo:
+            raise serializers.ValidationError(
+                {'tipo_desconto': 'Informe o tipo do desconto (FIXO ou PERCENTUAL).'}
+            )
+
+        if desconto == 0:
+            attrs['tipo_desconto'] = ''
+            attrs['desconto'] = Decimal('0.00')
+            return attrs
+
+        subtotal = calcular_subtotal(attrs['itens'])
+        try:
+            calcular_valor_desconto(subtotal, tipo, desconto)
+        except DescontoInvalido as exc:
+            raise serializers.ValidationError({'desconto': str(exc)})
+
+        return attrs
 
     def create(self, validated_data):
         itens_data = validated_data.pop('itens')
