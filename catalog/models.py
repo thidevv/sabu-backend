@@ -129,3 +129,7 @@ class ProdutoVariacao(models.Model):
 
     def __str__(self):
         return f"{self.produto.nome} - {self.nome}"
+
+    @property
+    def preco_final(self):
+        return self.preco_promo if self.preco_promo is not None else self.preco
