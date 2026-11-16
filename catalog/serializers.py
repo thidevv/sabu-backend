@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from rest_framework import serializers
 from .models import Categoria, Produto, ProdutoVariacao, TipoPele
+from core.constants import TAMANHO_MAXIMO_IMAGEM, FORMATOS_PERMITIDOS_IMAGEM
 
 
 class CategoriaSerializer(serializers.ModelSerializer):
@@ -26,10 +27,10 @@ class ProdutoVariacaoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProdutoVariacao
-        fields = ['id', 'produto', 'sku', 'nome', 'preco', 'preco_promo',
+        fields = ['id', 'produto', 'sku', 'nome', 'imagem', 'preco', 'preco_promo',
                   'inicio_promo', 'fim_promo', 'peso_gramas',
                   'quantidade_estoque', 'apagado_em', 'produto_abstrato_esta_ativo']
-        read_only_fields = ['id', 'apagado_em', 'quantidade_estoque']
+        read_only_fields = ['id', 'imagem', 'apagado_em', 'quantidade_estoque']
         extra_kwargs = {
             'preco': {'min_value': Decimal('0')},
             'preco_promo': {'min_value': Decimal('0')},
@@ -66,9 +67,25 @@ class ProdutoVariacaoSerializer(serializers.ModelSerializer):
         return attrs
 
 
+class ProdutoVariacaoImagemSerializer(serializers.ModelSerializer):
+    imagem = serializers.ImageField(required=True, allow_null=False)
+
+    class Meta:
+        model = ProdutoVariacao
+        fields = ['imagem']
+
+    def validate_imagem(self, value):
+        if value.size > TAMANHO_MAXIMO_IMAGEM:
+            raise serializers.ValidationError('A imagem deve ter no máximo 5 MB.')
+        fmt = getattr(getattr(value, 'image', None), 'format', None)
+        if fmt not in FORMATOS_PERMITIDOS_IMAGEM:
+            raise serializers.ValidationError('Formato não permitido. Use JPEG, PNG ou WebP.')
+        return value
+
+
 class ProdutoVariacaoUpdateSerializer(ProdutoVariacaoSerializer):
     class Meta(ProdutoVariacaoSerializer.Meta):
-        read_only_fields = ['id', 'apagado_em', 'quantidade_estoque']
+        read_only_fields = ['id', 'imagem', 'apagado_em', 'quantidade_estoque']
 
 
 class ProdutoSerializer(serializers.ModelSerializer):
@@ -90,12 +107,29 @@ class ProdutoSerializer(serializers.ModelSerializer):
             'id',
             'nome',
             'descricao',
+            'imagem',
             'esta_ativo',
             'criado_em',
             'tipo_pele',
             'categorias',
         ]
-        read_only_fields = ['id', 'criado_em']
+        read_only_fields = ['id', 'imagem', 'criado_em']
+
+
+class ProdutoImagemSerializer(serializers.ModelSerializer):
+    imagem = serializers.ImageField(required=True, allow_null=False)
+
+    class Meta:
+        model = Produto
+        fields = ['imagem']
+
+    def validate_imagem(self, value):
+        if value.size > TAMANHO_MAXIMO_IMAGEM:
+            raise serializers.ValidationError('A imagem deve ter no máximo 5 MB.')
+        fmt = getattr(getattr(value, 'image', None), 'format', None)
+        if fmt not in FORMATOS_PERMITIDOS_IMAGEM:
+            raise serializers.ValidationError('Formato não permitido. Use JPEG, PNG ou WebP.')
+        return value
 
 
 class ProdutoDetalhadoSerializer(serializers.ModelSerializer):
@@ -109,10 +143,11 @@ class ProdutoDetalhadoSerializer(serializers.ModelSerializer):
             'id',
             'nome',
             'descricao',
+            'imagem',
             'esta_ativo',
             'criado_em',
             'tipo_pele',
             'categorias',
             'variacoes',
         ]
-        read_only_fields = ['id', 'criado_em']
+        read_only_fields = ['id', 'imagem', 'criado_em']
