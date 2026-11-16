@@ -13,6 +13,7 @@ from .services import (
     registrar_movimentacao_estoque, registrar_movimentacao_material, criar_compra_fornecedor_completa,
     definir_categorias_fornecedor, criar_lote_materia_prima, criar_lote_variacao,
 )
+from core.constants import TAMANHO_MAXIMO_IMAGEM, FORMATOS_PERMITIDOS_IMAGEM
 
 
 def _validar_validade_nao_vencida(value):
@@ -35,13 +36,14 @@ class MateriaPrimaSerializer(serializers.ModelSerializer):
             'id',
             'sku',
             'nome',
+            'imagem',
             'tipo',
             'unidade_medida',
             'quantidade_estoque',
             'custo_unitario_referencia',
             'apagada_em',
         ]
-        read_only_fields = ['id', 'quantidade_estoque', 'apagada_em']
+        read_only_fields = ['id', 'imagem', 'quantidade_estoque', 'apagada_em']
         extra_kwargs = {
             'custo_unitario_referencia': {'min_value': Decimal('0.0000')}
         }
@@ -62,6 +64,22 @@ class MateriaPrimaSerializer(serializers.ModelSerializer):
         if possui_movimentacao:
             raise serializers.ValidationError('A unidade de medida não pode ser alterada, pois existem movimentações vinculadas a lotes desta matéria-prima.')
 
+        return value
+
+
+class MateriaPrimaImagemSerializer(serializers.ModelSerializer):
+    imagem = serializers.ImageField(required=True, allow_null=False)
+
+    class Meta:
+        model = MateriaPrima
+        fields = ['imagem']
+
+    def validate_imagem(self, value):
+        if value.size > TAMANHO_MAXIMO_IMAGEM:
+            raise serializers.ValidationError('A imagem deve ter no máximo 5 MB.')
+        fmt = getattr(getattr(value, 'image', None), 'format', None)
+        if fmt not in FORMATOS_PERMITIDOS_IMAGEM:
+            raise serializers.ValidationError('Formato não permitido. Use JPEG, PNG ou WebP.')
         return value
 
 
