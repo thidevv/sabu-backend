@@ -83,6 +83,7 @@ SPECTACULAR_SETTINGS = {
     'DESCRIPTION': 'Documentação da API do Sabu, um sistema de controle de estoque.',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
 }
 
 # Application definition
@@ -102,6 +103,7 @@ INSTALLED_APPS = [
     'inventory',
     'django_filters',
     'corsheaders',
+    "django_cleanup.apps.CleanupConfig",
 ]
 
 MIDDLEWARE = [
@@ -193,6 +195,9 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = 'static/'
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 
 # Email
