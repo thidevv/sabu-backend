@@ -10,7 +10,7 @@ from .serializers import (
     FornecedorSerializer, LoteMateriaPrimaSerializer, LoteProdutoVariacaoSerializer,
     MateriaPrimaSerializer, MovimentacaoEstoqueSerializer,
     MovimentacaoMaterialSerializer, VinculoFornecedorDetalhadoSerializer,
-    VinculoFornecedorSerializer, VinculoFornecedorUpdateSerializer,
+    VinculoFornecedorSerializer, VinculoFornecedorUpdateSerializer, MateriaPrimaImagemSerializer,
 )
 
 TAG = 'Estoque'
@@ -93,6 +93,43 @@ materia_prima_schema = extend_schema_view(
         request=None,
         responses={200: MateriaPrimaSerializer, 400: ERRO_400,
                    401: ERRO_401, 403: ERRO_403, 404: ERRO_404},
+    ),
+    imagem=extend_schema(
+        tags=[TAG],
+        summary='Enviar ou trocar imagem da matéria-prima',
+        description='Envia a imagem da matéria-prima (`multipart/form-data`, campo `imagem`). '
+                    'Se já houver uma imagem, ela é substituída e o arquivo antigo é apagado. '
+                    'Formatos aceitos: JPEG, PNG e WebP, com no máximo 5 MB. '
+                    'Retorna a matéria-prima atualizada, com a URL nova em `imagem`.',
+        request={'multipart/form-data': MateriaPrimaImagemSerializer},
+        responses={
+            200: MateriaPrimaSerializer,
+            400: resposta_erro(
+                'Arquivo inválido.',
+                EX_VALIDACAO,
+                exemplo_erro(
+                    'validation_error', 'Dados inválidos.',
+                    {'image': ['A imagem deve ter no máximo 5 MB.']},
+                    nome='imagem_muito_grande',
+                ),
+                exemplo_erro(
+                    'validation_error', 'Dados inválidos.',
+                    {'image': ['Formato não permitido. Use JPEG, PNG ou WebP.']},
+                    nome='formato_invalido',
+                ),
+            ),
+            401: ERRO_401,
+            403: ERRO_403,
+            404: ERRO_404,
+        },
+    ),
+    remover_imagem=extend_schema(
+        tags=[TAG],
+        summary='Remover imagem da matéria-prima',
+        description='Remove a imagem da matéria-prima e apaga o arquivo. '
+                    'Se a matéria-prima não tiver imagem, a operação é idempotente e também retorna 204.',
+        request=None,
+        responses={204: None, 401: ERRO_401, 403: ERRO_403, 404: ERRO_404},
     ),
 )
 
