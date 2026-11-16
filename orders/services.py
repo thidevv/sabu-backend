@@ -15,7 +15,7 @@ def criar_pedido_completo(usuario, dados_pedido, itens_data):
     itens_data = sorted(itens_data, key=lambda i: i['variacao'].pk)
 
     valor_total = sum(
-        (i['quantidade_item'] * i['variacao'].preco for i in itens_data),
+        (i['quantidade_item'] * i['variacao'].preco_final for i in itens_data),
         Decimal('0'),
     )
 
@@ -37,7 +37,7 @@ def criar_pedido_completo(usuario, dados_pedido, itens_data):
             pedido=pedido,
             variacao=variacao,
             quantidade_item=quantidade,
-            valor_unitario=variacao.preco,
+            valor_unitario=variacao.preco_final,
         )
 
     cliente = dados_pedido.get('cliente')
