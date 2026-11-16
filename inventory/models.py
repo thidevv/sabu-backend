@@ -5,6 +5,7 @@ from django.db import models
 from accounts.models import Usuario
 from catalog.models import ProdutoVariacao
 from orders.models import Pedido
+from core.utils import CaminhoImagem
 
 NUMERO_LOTE_NAO_INFORMADO = 'Não informado'
 
@@ -42,6 +43,7 @@ class MateriaPrima(models.Model):
     id = models.BigAutoField(primary_key=True)
     sku = models.CharField(max_length=50, unique=True)
     nome = models.CharField(max_length=100, unique=True)
+    imagem = models.ImageField(upload_to=CaminhoImagem('materias-prima'), null=True, blank=True)
     tipo = models.CharField(max_length=50, choices=CATEGORIA_MATERIA_PRIMA_CHOICES)
     unidade_medida = models.CharField(max_length=10, choices=UNIDADE_CHOICES)
     quantidade_estoque = models.DecimalField(default=0, editable=False, max_digits=10, decimal_places=3)
