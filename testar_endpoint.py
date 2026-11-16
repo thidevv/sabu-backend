@@ -26,6 +26,8 @@ dados = {
     "embalagem": "Não informado",
     "base_sabonete": "Processo a frio",
     "tipo_vendedor": "Artesanal",
+    "custo_unitario": "12.50",
+    "margem_desejada": "30"
 }
 
 caminho = "/api/v1/intelligence/prever-preco/"
