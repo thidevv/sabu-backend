@@ -117,3 +117,6 @@ media/
 **/migrations/**
 !**/migrations
 !**/migrations/__init__.py
+
+# Plano local da feature do quiz
+implementacao_quiz.md
