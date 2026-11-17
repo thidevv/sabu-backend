@@ -13,10 +13,11 @@ from inventory.models import FichaTecnica
 from inventory.serializers import FabricarVariacaoSerializer, LoteProdutoVariacaoSerializer
 from inventory.services import fabricar_variacao
 from .filters import ProdutoFilter, ProdutoVariacaoFilter
-from .models import Categoria, Produto, ProdutoVariacao, TipoPele
-from .schema import categoria_schema, tipo_pele_schema, produto_schema, variacao_schema
+from .models import Categoria, Ingrediente, Produto, ProdutoVariacao, TipoPele
+from .schema import categoria_schema, ingrediente_schema, tipo_pele_schema, produto_schema, variacao_schema
 from .serializers import (
     CategoriaSerializer,
+    IngredienteSerializer,
     ProdutoSerializer,
     ProdutoDetalhadoSerializer,
     ProdutoVariacaoSerializer,
@@ -41,11 +42,19 @@ class TipoPeleViewSet(PublicReadAdminWriteViewSetMixin, viewsets.ModelViewSet):
     search_fields = ['nome']
 
 
+@ingrediente_schema
+class IngredienteViewSet(PublicReadAdminWriteViewSetMixin, viewsets.ModelViewSet):
+    queryset = Ingrediente.objects.order_by('nome')
+    serializer_class = IngredienteSerializer
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['nome']
+
+
 @produto_schema
 class ProdutoViewSet(PublicReadAdminWriteViewSetMixin, viewsets.ModelViewSet):
     queryset = (
         Produto.objects
-        .prefetch_related('categorias', 'variacoes', 'tipo_pele')
+        .prefetch_related('categorias', 'variacoes', 'tipo_pele', 'ingredientes')
         .order_by('nome')
     )
     filterset_class = ProdutoFilter

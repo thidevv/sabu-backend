@@ -57,6 +57,11 @@ REST_FRAMEWORK = {
     ],
 
     'EXCEPTION_HANDLER': 'core.exception_handler.custom_exception_handler',
+
+    # Sem DEFAULT_THROTTLE_CLASSES: só as views que declaram throttle_classes são limitadas
+    'DEFAULT_THROTTLE_RATES': {
+        'quiz': env('QUIZ_THROTTLE_RATE', default='20/min'),
+    },
 }
 
 SPECTACULAR_SETTINGS = {
@@ -101,6 +106,7 @@ INSTALLED_APPS = [
     'catalog',
     'orders',
     'inventory',
+    'recommendations',
     'django_filters',
     'corsheaders',
     "django_cleanup.apps.CleanupConfig",
