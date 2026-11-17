@@ -1,13 +1,13 @@
-﻿produto_id,nome,tipo_pele_indicado,base,essencia,sem_fragrancia,vegano,ingredientes
-1,Aveia e Mel,seca,processo a frio,mel,0,0,aveia;mel;manteiga de karite;oleo vegetal
-2,Argila Verde,oleosa,processo a frio,menta,0,1,argila verde;oleo vegetal;menta
-3,Camomila Suave,todos,glicerina,camomila,0,1,glicerina;camomila;oleo vegetal
-4,Glicerina Neutra,todos,glicerina,neutro,1,1,glicerina;oleo vegetal
-5,Karité Hidratante,seca,processo a frio,neutro,1,1,manteiga de karite;oleo vegetal
-6,Carvão Ativado,oleosa,glicerina,neutro,1,1,glicerina;carvao ativado
-7,Lavanda Calmante,mista,glicerina,lavanda,0,1,glicerina;lavanda;oleo vegetal
-8,Cítrico Revigorante,normal,base vegetal,citrica,0,1,base vegetal;oleo essencial citrico
-9,Argila Branca,mista,processo a frio,neutro,1,1,argila branca;oleo vegetal
-10,Leite de Cabra,seca,processo a frio,neutro,1,0,leite de cabra;manteiga de karite;oleo vegetal
-11,Alecrim e Capim-limão,oleosa,glicerina,capim-limao,0,1,glicerina;alecrim;capim-limao
-12,Calêndula,normal,glicerina,calendula,0,1,glicerina;calendula;oleo vegetal
+produto_id,nome,tipo_pele_indicado,base,essencia,sem_fragrancia,vegano,ingredientes,variacao,peso_gramas,preco,estoque
+1,Aveia e Mel,seca,processo a frio,mel,0,0,aveia;mel;manteiga de karite;oleo vegetal,Barra,100,18.90,20
+2,Argila Verde,oleosa,processo a frio,menta,0,1,argila verde;oleo vegetal;menta,Barra,100,19.90,15
+3,Camomila Suave,todos,glicerina,camomila,0,1,glicerina;camomila;oleo vegetal,Barra,100,16.90,25
+4,Glicerina Neutra,todos,glicerina,neutro,1,1,glicerina;oleo vegetal,Barra,100,14.90,30
+5,Karité Hidratante,seca,processo a frio,neutro,1,1,manteiga de karite;oleo vegetal,Barra,100,21.90,12
+6,Carvão Ativado,oleosa,glicerina,neutro,1,1,glicerina;carvao ativado,Barra,100,19.90,18
+7,Lavanda Calmante,mista,glicerina,lavanda,0,1,glicerina;lavanda;oleo vegetal,Barra,100,17.90,22
+8,Cítrico Revigorante,normal,base vegetal,citrica,0,1,base vegetal;oleo essencial citrico,Barra,100,16.90,16
+9,Argila Branca,mista,processo a frio,neutro,1,1,argila branca;oleo vegetal,Barra,100,19.90,14
+10,Leite de Cabra,seca,processo a frio,neutro,1,0,leite de cabra;manteiga de karite;oleo vegetal,Barra,100,22.90,10
+11,Alecrim e Capim-limão,oleosa,glicerina,capim-limao,0,1,glicerina;alecrim;capim-limao,Barra,100,17.90,20
+12,Calêndula,normal,glicerina,calendula,0,1,glicerina;calendula;oleo vegetal,Barra,100,16.90,24
