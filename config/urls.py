@@ -40,4 +40,5 @@ urlpatterns = [
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     re_path(r"^media/(?P<path>.*)$", serve, {"document_root": settings.MEDIA_ROOT}),
     path('api/v1/intelligence/', include('intelligence.urls')),
+    path('api/v1/dashboard/', include('dashboard.urls')),
 ]
