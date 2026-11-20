@@ -1,6 +1,6 @@
 from django.db import transaction
 from django.utils import timezone
-from rest_framework import viewsets, mixins, status
+from rest_framework import viewsets, mixins, status, filters
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
@@ -32,6 +32,8 @@ class MateriaPrimaViewSet(AdminOnlyViewSetMixin, viewsets.ModelViewSet):
     queryset = MateriaPrima.objects.order_by('nome')
     serializer_class = MateriaPrimaSerializer
     filterset_class = MateriaPrimaFilter
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['nome', 'sku']
 
     def perform_destroy(self, instance):
         with transaction.atomic():
@@ -75,6 +77,8 @@ class FornecedorViewSet(AdminOnlyViewSetMixin, viewsets.ModelViewSet):
     queryset = Fornecedor.objects.prefetch_related('categorias').order_by('nome')
     serializer_class = FornecedorSerializer
     filterset_class = FornecedorFilter
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['nome']
 
     def perform_destroy(self, instance):
         with transaction.atomic():
